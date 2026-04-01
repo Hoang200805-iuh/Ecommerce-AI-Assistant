@@ -41,3 +41,27 @@ SmartMobile Agent kết hợp:
 - **Sentiment Analysis :**  Phân tích đánh giá người dùng để tóm tắt **Ưu điểm – Nhược điểm** của sản phẩm.
 
 Nhờ đó hệ thống có thể đưa ra **gợi ý khách quan và hỗ trợ quyết định mua sắm tốt hơn** so với các website thương mại điện tử truyền thống.
+
+---
+
+# 🚀 Tổng quan hệ thống
+
+SmartMobile Agent được xây dựng với mục tiêu trở thành một nền tảng thương mại điện tử thông minh dựa trên dữ liệu và AI, kết hợp:
+
+- **Frontend:** React + TailwindCSS  
+- **Backend:** FastAPI / NodeJS  
+- **Database:** PostgreSQL + Vector Database  
+- **AI Layer:** RAG, Embedding, Sentiment Analysis  
+- **DevOps:** Docker, CI/CD, Cloud Deploy  
+
+---
+
+# 🧠 Kiến trúc AI (RAG Workflow)
+
+```mermaid
+flowchart LR
+    A[Người dùng đặt câu hỏi] --> B[Tạo Embedding]
+    B --> C[Vector Search]
+    C --> D[Truy vấn dữ liệu sản phẩm]
+    D --> E[LLM tổng hợp câu trả lời]
+    E --> F[Phản hồi cho người dùng]
