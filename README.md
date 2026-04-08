@@ -1,10 +1,17 @@
 # SmartPhone E-comere
 
-## 1. Cach chay du an
+## 1. Cách chạy dự án
 
-Can mo 2 terminal: 1 terminal cho backend va 1 terminal cho frontend.
+Dự án gồm 2 phần chính:
 
-### 1.1 Chay backend (FastAPI)
+Backend: FastAPI
+
+Frontend: React + Vite
+
+Cần mở 2 terminal riêng biệt để chạy.
+
+
+### 1.1 Chạy backend (FastAPI)
 
 ```bash
 cd backend
@@ -19,7 +26,7 @@ Backend sau khi chay:
 - Swagger docs: `http://localhost:3001/docs`
 - Health check: `http://localhost:3001/health`
 
-### 1.2 Chay frontend (React + Vite)
+### 1.2 Chạy frontend (React + Vite)
 
 ```bash
 cd frontend
@@ -27,18 +34,18 @@ npm install
 npm run dev
 ```
 
-Frontend mac dinh chay o: `http://localhost:5173`
+Frontend mặc định chạy ở: `http://localhost:5173`
 
-### 1.3 Cau hinh API cho frontend (tuy chon)
+### 1.3 Cấu hình API cho frontend (tùy chọn)
 
-Frontend dang dung mac dinh `http://localhost:3001/api` trong file `src/services/api.js`.
-Neu muon doi API, tao file `.env` trong thu muc `frontend/`:
+Frontend đang dùng mặc định  `http://localhost:3001/api` trong file `src/services/api.js`.
+Nếu muốn đổi API, tạo file `.env` trong thư mục `frontend/`:
 
 ```bash
 VITE_API_BASE_URL=http://localhost:3001/api
 ```
 
-## 2. Cau truc thu muc
+## 2. Cấu trúc thư mục
 
 ```text
 SmartPhone E-comere/
