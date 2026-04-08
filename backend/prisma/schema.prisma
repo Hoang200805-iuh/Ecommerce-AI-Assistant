@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrderStatus {
+  pending
+  processing
+  shipped
+  delivered
+  cancelled
+}
+
+enum PaymentStatus {
+  pending
+  processing
+  completed
+  failed
+  refunded
+}
+
+enum Role {
+  guest
+  customer
+  admin
+  warehouse
+}
+
+model User {
+  user_id       String    @id @default(uuid())
+  name          String
+  email         String    @unique
+  password_hash String
+  role          Role      @default(customer)
+  created_at    DateTime  @default(now())
+
+  orders  Order[]
+  reviews Review[]
+}
+
+model Product {
+  product_id     String        @id @default(uuid())
+  name           String
+  brand          String
+  price          Decimal
+  stock          Int
+  description    String?
+  image_url      String?
+  specifications Json
+  created_at     DateTime      @default(now())
+
+  reviews     Review[]
+  orderItems  OrderItem[]
+  vectorStore VectorStore?
+}
+
+model Order {
+  order_id    String      @id @default(uuid())
+  user        User        @relation(fields: [user_id], references: [user_id])
+  user_id     String
+  total_price Decimal
+  status      OrderStatus @default(pending)
+  created_at  DateTime    @default(now())
+
+  items   OrderItem[]
+  payment Payment?
+}
+
+model OrderItem {
+  order_item_id String   @id @default(uuid())
+  order         Order    @relation(fields: [order_id], references: [order_id])
+  order_id      String
+  product       Product  @relation(fields: [product_id], references: [product_id])
+  product_id    String
+  quantity      Int
+  price         Decimal
+}
+
+model Payment {
+  payment_id     String        @id @default(uuid())
+  order          Order         @relation(fields: [order_id], references: [order_id])
+  order_id       String        @unique
+  payment_method String
+  payment_status PaymentStatus @default(pending)
+  payment_date   DateTime?
+}
+
+model Review {
+  review_id       String   @id @default(uuid())
+  product         Product  @relation(fields: [product_id], references: [product_id])
+  product_id      String
+  user            User     @relation(fields: [user_id], references: [user_id])
+  user_id         String
+  rating          Int
+  comment         String
+  sentiment_score Float
+  created_at      DateTime @default(now())
+}
+
+model VectorStore {
+  vector_id  String   @id @default(uuid())
+  product    Product  @relation(fields: [product_id], references: [product_id])
+  product_id String   @unique
+  embedding  Json
+  content    String
+}
