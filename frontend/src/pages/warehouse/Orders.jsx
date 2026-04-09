@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ClipboardList, Search, Truck, ChevronDown, ChevronUp, RefreshCw, Loader2, MessageSquare, X } from 'lucide-react'
+import { ClipboardList, Search, Truck, ChevronDown, ChevronUp, RefreshCw, Loader2 } from 'lucide-react'
 import { fetchWarehouseOrders, updateWarehouseOrderStatus } from '../../services/api.js'
 
 const statuses = ['Tất cả', 'pending', 'processing', 'shipped', 'delivered', 'cancelled']
@@ -31,8 +31,6 @@ export default function WarehouseOrders() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [cancelTarget, setCancelTarget] = useState('')
-  const [cancelComment, setCancelComment] = useState('')
 
   const loadOrders = async () => {
     setLoading(true)
@@ -78,34 +76,13 @@ export default function WarehouseOrders() {
     }
   }
 
-  const openCancelDialog = (orderId) => {
-    setCancelTarget(orderId)
-    setCancelComment('')
-    setError('')
-  }
-
-  const closeCancelDialog = () => {
-    if (saving) return
-    setCancelTarget('')
-    setCancelComment('')
-  }
-
-  const cancelOrder = async () => {
-    if (!cancelTarget) return
-
-    const normalizedComment = cancelComment.trim()
-    if (!normalizedComment) {
-      setError('Vui lòng nhập bình luận khi huỷ đơn hàng.')
-      return
-    }
-
+  const cancelOrder = async (orderId) => {
     setSaving(true)
     setError('')
 
     try {
-      await updateWarehouseOrderStatus(cancelTarget, 'cancelled', normalizedComment)
+      await updateWarehouseOrderStatus(orderId, 'cancelled')
       await loadOrders()
-      closeCancelDialog()
     } catch (err) {
       setError(err.message || 'Không thể huỷ đơn hàng.')
     } finally {
@@ -199,7 +176,7 @@ export default function WarehouseOrders() {
                   {canCancel && (
                     <button
                       disabled={saving}
-                      onClick={() => openCancelDialog(order.order_id)}
+                      onClick={() => cancelOrder(order.order_id)}
                       className="px-3 py-1.5 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 text-xs font-semibold transition-all disabled:opacity-60"
                     >
                       Huỷ
@@ -239,13 +216,6 @@ export default function WarehouseOrders() {
                     </div>
                   </div>
 
-                  {order.note && (
-                    <div className="mt-3 rounded-xl border border-amber-500/25 bg-amber-500/10 p-3">
-                      <span className="text-amber-300 text-xs inline-flex items-center gap-1.5"><MessageSquare size={13} /> Ghi chú đơn hàng</span>
-                      <p className="text-amber-100 text-sm mt-1 whitespace-pre-line">{order.note}</p>
-                    </div>
-                  )}
-
                   {order.status === 'shipped' && (
                     <div className="mt-4 bg-indigo-600/10 border border-indigo-500/20 rounded-xl p-3 flex items-center gap-3">
                       <Truck size={20} className="text-indigo-400 flex-shrink-0" />
@@ -269,35 +239,6 @@ export default function WarehouseOrders() {
         <div className="glass rounded-2xl p-16 text-center border border-white/10">
           <ClipboardList size={48} className="mx-auto text-slate-600 mb-4" />
           <p className="text-slate-500">Không có đơn hàng nào</p>
-        </div>
-      )}
-
-      {cancelTarget && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4">
-          <div className="glass rounded-3xl p-6 border border-red-500/30 w-full max-w-lg fade-in">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-white font-semibold text-lg">Huỷ đơn hàng</h2>
-              <button onClick={closeCancelDialog} className="text-slate-400 hover:text-white" disabled={saving}><X size={20} /></button>
-            </div>
-
-            <p className="text-slate-400 text-sm mb-3">Vui lòng nhập lý do huỷ cho đơn <span className="text-red-300 font-mono">{cancelTarget}</span>. Thông tin này sẽ được lưu vào ghi chú đơn hàng.</p>
-
-            <textarea
-              rows={4}
-              value={cancelComment}
-              onChange={event => setCancelComment(event.target.value)}
-              placeholder="Ví dụ: Hết hàng màu khách đã đặt, đã liên hệ nhưng chưa chốt phương án thay thế."
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-red-500 transition-colors resize-none"
-            />
-
-            <div className="flex gap-3 pt-4">
-              <button onClick={closeCancelDialog} disabled={saving} className="flex-1 bg-white/5 border border-white/10 text-white py-2.5 rounded-xl hover:bg-white/10 transition-all text-sm font-medium">Đóng</button>
-              <button onClick={cancelOrder} disabled={saving} className="flex-1 rounded-xl border border-red-500/30 bg-red-500/10 text-red-300 py-2.5 text-sm font-semibold hover:bg-red-500/20 transition-all disabled:opacity-60 inline-flex items-center justify-center gap-2">
-                {saving ? <Loader2 size={16} className="animate-spin" /> : <MessageSquare size={16} />}
-                {saving ? 'Đang huỷ...' : 'Xác nhận huỷ'}
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </div>

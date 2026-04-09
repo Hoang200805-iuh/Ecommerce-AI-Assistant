@@ -4,14 +4,6 @@ import { ShoppingCart, Search, Menu, X, Smartphone, Bot } from 'lucide-react'
 import { getRoleLabel, useAuth } from '../context/AuthContext'
 import { getCart, useCartSync } from '../store/cartStore'
 
-const homeQuickLinks = [
-  { to: '/?q=iphone', label: 'iPhone' },
-  { to: '/?q=samsung', label: 'Samsung' },
-  { to: '/?q=laptop', label: 'Laptop' },
-  { to: '/?q=xiaomi', label: 'Xiaomi' },
-  { to: '/?q=oppo', label: 'OPPO' },
-]
-
 export default function CustomerLayout() {
   const [mobileMenu, setMobileMenu] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -152,22 +144,6 @@ export default function CustomerLayout() {
             </button>
           </div>
         </div>
-
-        {isHome && (
-          <div className="border-t border-slate-200 bg-white">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2 flex flex-wrap gap-2">
-              {homeQuickLinks.map(item => (
-                <Link
-                  key={item.label}
-                  to={item.to}
-                  className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 text-sm font-medium hover:bg-slate-200 hover:text-[#2563eb] transition-all"
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Mobile menu */}
         {mobileMenu && (

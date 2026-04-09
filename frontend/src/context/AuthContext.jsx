@@ -122,7 +122,6 @@ export function AuthProvider({ children }) {
       name: trimmedName,
       email: trimmedEmail,
       phone: trimmedPhone,
-      password,
     })
 
     setCustomUsers(prev => [...prev, newUser])

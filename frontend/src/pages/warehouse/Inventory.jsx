@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, ArrowUpDown, Check, Loader2, Package, Plus, RefreshCw, Search, ShieldAlert, X } from 'lucide-react'
+import { AlertTriangle, ArrowUpDown, Check, Loader2, Package, RefreshCw, Search, ShieldAlert, X } from 'lucide-react'
 import { fetchWarehouseInventory, updateWarehouseInventory } from '../../services/api.js'
 
 const statusMap = {
@@ -96,9 +96,6 @@ export default function Inventory() {
           <p className="text-slate-500 text-sm mt-1">{summary.totalProducts} sản phẩm • Tổng SKU</p>
         </div>
         <div className="flex gap-3 flex-wrap">
-          <Link to="/warehouse/upload" className="flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 px-4 py-2 rounded-xl text-sm hover:bg-indigo-500/15 transition-all">
-            <Plus size={16} /> Upload sản phẩm
-          </Link>
           <Link to="/warehouse/reports" className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 px-4 py-2 rounded-xl text-sm hover:bg-amber-500/15 transition-all">
             <ShieldAlert size={16} /> Báo cáo hệ thống
           </Link>

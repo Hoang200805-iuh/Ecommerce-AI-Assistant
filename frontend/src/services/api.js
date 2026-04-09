@@ -7,7 +7,7 @@ async function request(path, options = {}) {
   })
   const payload = await response.json().catch(() => null)
   if (!response.ok) {
-    throw new Error(payload?.detail ?? payload?.message ?? 'API request failed')
+    throw new Error(payload?.message ?? 'API request failed')
   }
   return payload
 }
@@ -74,23 +74,16 @@ export async function updateWarehouseInventory(productId, payload) {
   })
 }
 
-export async function createWarehouseProduct(payload) {
-  return request('/warehouse/products', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  })
-}
-
 export async function fetchWarehouseOrders(filters = {}) {
   const query = buildQuery(filters)
   const { data } = await request(`/warehouse/orders${query}`)
   return data
 }
 
-export async function updateWarehouseOrderStatus(orderId, status, comment = '') {
+export async function updateWarehouseOrderStatus(orderId, status) {
   return request(`/warehouse/orders/${encodeURIComponent(orderId)}/status`, {
     method: 'PATCH',
-    body: JSON.stringify({ status, comment }),
+    body: JSON.stringify({ status }),
   })
 }
 

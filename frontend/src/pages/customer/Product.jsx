@@ -207,12 +207,12 @@ export default function Product() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Left: Product image */}
           <div>
-            <div className={`rounded-3xl h-96 lg:h-[32rem] bg-gradient-to-br ${bgGradient} flex items-center justify-center mb-4 relative overflow-hidden`}>
+            <div className={`rounded-3xl h-96 bg-gradient-to-br ${bgGradient} flex items-center justify-center mb-4 relative overflow-hidden`}>
               {imageSrc ? (
                 <img 
                   src={imageSrc}
                   alt={p.name} 
-                  className="w-full h-full object-contain p-6"
+                  className="w-full h-full object-cover"
                   onError={() => {
                     if (!useProxy && p.image_url) {
                       setUseProxy(true)
