@@ -3,31 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
-}
-
-enum OrderStatus {
-  pending
-  processing
-  shipped
-  delivered
-  cancelled
-}
-
-enum PaymentStatus {
-  pending
-  processing
-  completed
-  failed
-  refunded
-}
-
-enum Role {
-  guest
-  customer
-  admin
-  warehouse
 }
 
 model User {
@@ -35,7 +12,7 @@ model User {
   name          String
   email         String    @unique
   password_hash String
-  role          Role      @default(customer)
+  role          String    @default("customer")
   created_at    DateTime  @default(now())
 
   orders  Order[]
@@ -63,7 +40,7 @@ model Order {
   user        User        @relation(fields: [user_id], references: [user_id])
   user_id     String
   total_price Decimal
-  status      OrderStatus @default(pending)
+  status      String      @default("pending")
   created_at  DateTime    @default(now())
 
   items   OrderItem[]
@@ -85,7 +62,7 @@ model Payment {
   order          Order         @relation(fields: [order_id], references: [order_id])
   order_id       String        @unique
   payment_method String
-  payment_status PaymentStatus @default(pending)
+  payment_status String        @default("pending")
   payment_date   DateTime?
 }
 

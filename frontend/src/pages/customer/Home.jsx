@@ -1,12 +1,15 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Star, ShoppingCart, Search, Zap, Shield, Truck, Bot, ChevronRight, TrendingUp } from 'lucide-react'
+import { Star, ShoppingCart, Search, Zap, Shield, Truck, Bot, ChevronRight, Users2, MessageCircle } from 'lucide-react'
 import { fetchProducts } from '../../services/api.js'
 import { addToCart } from '../../store/cartStore.js'
+import { getDiscussionPosts, useCommunitySync } from '../../store/communityStore.js'
 import { useAuth } from '../../context/AuthContext'
+import { formatRelativeTime, getCommunityStats, getHotTopics } from '../../features/community/community.utils.js'
 
-const brands = ['Tất cả', 'Apple', 'Samsung', 'Google', 'Xiaomi', 'OPPO', 'OnePlus']
 const categories = ['Tất cả', 'Điện thoại', 'Laptop']
+const fallbackPhoneBrands = ['Apple', 'Samsung', 'Google', 'Xiaomi', 'OPPO', 'OnePlus']
+const fallbackLaptopBrands = ['Apple', 'ASUS', 'Acer', 'Dell', 'HP', 'Lenovo', 'MSI']
 
 function formatPrice(n) {
   return Number(n || 0).toLocaleString('vi-VN') + ' VND'
@@ -76,6 +79,7 @@ export default function Home() {
   const [brand, setBrand] = useState('Tất cả')
   const [category, setCategory] = useState('Tất cả')
   const [products, setProducts] = useState([])
+  const [communityPosts, setCommunityPosts] = useState(() => getDiscussionPosts())
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -96,6 +100,11 @@ export default function Home() {
     loadProducts()
   }, [])
 
+  useEffect(() => {
+    setCommunityPosts(getDiscussionPosts())
+    return useCommunitySync(setCommunityPosts)
+  }, [])
+
   const derivedStats = useMemo(() => {
     const phones = products.filter(product => !isLaptopProduct(product)).length
     const laptops = products.filter(product => isLaptopProduct(product)).length
@@ -103,6 +112,56 @@ export default function Home() {
     const samsung = products.filter(product => product.brand === 'Samsung').length
     return { phones, laptops, apple, samsung, total: products.length }
   }, [products])
+
+  const allBrands = useMemo(() => {
+    return [...new Set(
+      products
+        .map(product => String(product?.brand || '').trim())
+        .filter(Boolean)
+    )].sort((a, b) => a.localeCompare(b, 'vi'))
+  }, [products])
+
+  const phoneBrands = useMemo(() => {
+    const dynamicPhoneBrands = [...new Set(
+      products
+        .filter(product => !isLaptopProduct(product))
+        .map(product => String(product?.brand || '').trim())
+        .filter(Boolean)
+    )]
+
+    return (dynamicPhoneBrands.length ? dynamicPhoneBrands : fallbackPhoneBrands)
+      .slice()
+      .sort((a, b) => a.localeCompare(b, 'vi'))
+  }, [products])
+
+  const laptopBrands = useMemo(() => {
+    const dynamicLaptopBrands = [...new Set(
+      products
+        .filter(product => isLaptopProduct(product))
+        .map(product => String(product?.brand || '').trim())
+        .filter(Boolean)
+    )]
+
+    return (dynamicLaptopBrands.length ? dynamicLaptopBrands : fallbackLaptopBrands)
+      .slice()
+      .sort((a, b) => a.localeCompare(b, 'vi'))
+  }, [products])
+
+  const visibleBrands = useMemo(() => {
+    if (category === 'Điện thoại') {
+      return ['Tất cả', ...phoneBrands]
+    }
+    if (category === 'Laptop') {
+      return ['Tất cả', ...laptopBrands]
+    }
+    return ['Tất cả', ...allBrands]
+  }, [category, phoneBrands, laptopBrands, allBrands])
+
+  useEffect(() => {
+    if (!visibleBrands.includes(brand)) {
+      setBrand('Tất cả')
+    }
+  }, [brand, visibleBrands])
 
   const filtered = useMemo(() => products.filter(product => {
     const matchBrand = brand === 'Tất cả' || product.brand === brand
@@ -118,6 +177,9 @@ export default function Home() {
   const sortedProducts = useMemo(() => [...filtered].sort(sortProducts), [filtered])
   const visiblePhones = useMemo(() => sortedProducts.filter(product => !isLaptopProduct(product)), [sortedProducts])
   const visibleLaptops = useMemo(() => sortedProducts.filter(product => isLaptopProduct(product)), [sortedProducts])
+  const communityStats = useMemo(() => getCommunityStats(communityPosts), [communityPosts])
+  const communityHotTopics = useMemo(() => getHotTopics(communityPosts).slice(0, 3), [communityPosts])
+  const communityHighlights = useMemo(() => communityPosts.slice(0, 3), [communityPosts])
   const heroProduct = sortedProducts[0] || products[0] || null
   const promoProducts = sortedProducts.slice(0, 4)
   const hasFilters = Boolean(query.trim()) || brand !== 'Tất cả' || category !== 'Tất cả'
@@ -143,52 +205,15 @@ export default function Home() {
   return (
     <div className="min-h-screen retail-bg text-slate-900">
       <section className="max-w-7xl mx-auto px-4 pt-6">
-        <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)_300px]">
-          <aside className="retail-card rounded-[28px] overflow-hidden">
-            <div className="bg-[#2563eb] px-5 py-4 force-white">
-              <p className="text-[11px] uppercase tracking-[0.26em] opacity-80">Danh mục sản phẩm</p>
-              <h2 className="mt-1 text-lg font-bold">Mua sắm nhanh</h2>
-            </div>
-            <div className="p-3">
-              {[
-                { label: 'Điện thoại', count: derivedStats.phones, hint: 'iPhone, Galaxy, Xiaomi' },
-                { label: 'Laptop', count: derivedStats.laptops, hint: 'Mỏng nhẹ, gaming, học tập' },
-                { label: 'Apple', count: derivedStats.apple, hint: 'iPhone, MacBook, AirPods' },
-                { label: 'Samsung', count: derivedStats.samsung, hint: 'Galaxy S, A, Z series' },
-              ].map(item => (
-                <button
-                  key={item.label}
-                  type="button"
-                  onClick={() => {
-                    if (item.label === 'Apple' || item.label === 'Samsung') {
-                      setBrand(item.label)
-                      return
-                    }
-                    setCategory(item.label === 'Laptop' ? 'Laptop' : item.label === 'Điện thoại' ? 'Điện thoại' : 'Tất cả')
-                  }}
-                  className="flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left transition-all hover:bg-slate-50"
-                >
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">{item.label}</p>
-                    <p className="text-xs text-slate-500">{item.hint}</p>
-                  </div>
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">{item.count}</span>
-                </button>
-              ))}
-            </div>
-          </aside>
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
 
           <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-[#2563eb] via-[#3b82f6] to-[#93c5fd] p-6 force-white shadow-[0_24px_70px_rgba(37,99,235,0.28)]">
             <div className="absolute -left-16 top-0 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
             <div className="absolute -bottom-24 right-0 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
 
-            <div className="relative z-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-center">
+            <div className="relative z-10 grid gap-8 xl:grid-cols-[minmax(0,1fr)_280px] xl:items-center">
               <div>
-                <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-1.5 text-sm font-medium backdrop-blur">
-                  <Zap size={14} />
-                  CellphoneS-style storefront
-                </div>
-                <h1 className="mt-5 max-w-2xl text-4xl font-black leading-tight md:text-5xl">
+                <h1 className="mt-5 max-w-2xl text-3xl font-black leading-tight sm:text-4xl xl:text-5xl">
                   Sắm công nghệ xịn, giá tốt mỗi ngày.
                 </h1>
                 <p className="mt-4 max-w-xl text-base leading-7 text-white/85 md:text-lg">
@@ -225,7 +250,7 @@ export default function Home() {
                     { label: 'Sản phẩm', value: `${derivedStats.total}+` },
                     { label: 'Điện thoại', value: `${derivedStats.phones}+` },
                     { label: 'Laptop', value: `${derivedStats.laptops}+` },
-                    { label: 'Thương hiệu', value: `${brands.length - 1}+` },
+                    { label: 'Thương hiệu', value: `${allBrands.length}+` },
                   ].map(item => (
                     <div key={item.label} className="rounded-2xl bg-white/14 px-4 py-3 backdrop-blur">
                       <p className="text-2xl font-black">{item.value}</p>
@@ -339,12 +364,12 @@ export default function Home() {
       </section>
 
       <section className="max-w-7xl mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {[
-            { icon: Zap, title: 'Khuyến mãi mạnh', desc: 'Nhiều deal hot cập nhật liên tục.' },
             { icon: Shield, title: 'Hàng chính hãng', desc: 'Bảo hành rõ ràng, nguồn gốc minh bạch.' },
             { icon: Truck, title: 'Giao nhanh', desc: 'Hỗ trợ giao trong ngày ở khu vực lớn.' },
             { icon: Bot, title: 'Tư vấn AI', desc: 'Gợi ý máy phù hợp theo nhu cầu thực tế.' },
+            { icon: Users2, title: 'Cộng đồng', desc: 'Trao đổi trải nghiệm, mẹo dùng máy.' },
           ].map(item => (
             <div key={item.title} className="retail-card retail-card-hover rounded-[24px] p-5">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#eff6ff] text-[#2563eb]">
@@ -360,11 +385,6 @@ export default function Home() {
       <section id="product-list" className="max-w-7xl mx-auto px-4 pb-16 pt-4">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-sm font-bold uppercase tracking-[0.24em] text-[#2563eb]">Sản phẩm nổi bật</p>
-            <h2 className="mt-2 text-3xl font-black text-slate-900">Khám phá theo nhu cầu</h2>
-            <p className="mt-2 text-sm text-slate-500">
-              {hasFilters ? `Đang lọc ${sortedProducts.length} sản phẩm phù hợp.` : 'Điện thoại, laptop và deal hot được trình bày theo kiểu cửa hàng bán lẻ.'}
-            </p>
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -373,24 +393,35 @@ export default function Home() {
                 Xóa tìm kiếm
               </button>
             )}
-            {categories.map(item => (
-                  <button
-                key={item}
-                onClick={() => setCategory(item)}
-                    className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${category === item ? 'bg-[#2563eb] force-white shadow-md' : 'border border-slate-200 bg-white text-slate-700 hover:border-[#2563eb]/30 hover:text-[#2563eb]'}`}
-              >
-                {item}
-              </button>
-            ))}
-            {brands.map(item => (
-              <button
-                key={item}
-                onClick={() => setBrand(item)}
-                className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${brand === item ? 'bg-slate-900 force-white shadow-md' : 'border border-slate-200 bg-white text-slate-700 hover:border-slate-400 hover:text-slate-900'}`}
-              >
-                {item}
-              </button>
-            ))}
+            {categories.map(item => {
+              const categoryLabel = item === 'Tất cả' ? 'Tất cả loại' : item
+
+              return (
+                <button
+                  key={item}
+                  onClick={() => {
+                    setCategory(item)
+                    setBrand('Tất cả')
+                  }}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${category === item ? 'bg-[#2563eb] force-white shadow-md' : 'border border-slate-200 bg-white text-slate-700 hover:border-[#2563eb]/30 hover:text-[#2563eb]'}`}
+                >
+                  {categoryLabel}
+                </button>
+              )
+            })}
+            {visibleBrands.map(item => {
+              const brandLabel = item === 'Tất cả' ? 'Tất cả hãng' : item
+
+              return (
+                <button
+                  key={item}
+                  onClick={() => setBrand(item)}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${brand === item ? 'bg-slate-900 force-white shadow-md' : 'border border-slate-200 bg-white text-slate-700 hover:border-slate-400 hover:text-slate-900'}`}
+                >
+                  {brandLabel}
+                </button>
+              )
+            })}
           </div>
         </div>
 

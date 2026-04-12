@@ -1,20 +1,11 @@
--- CreateEnum
-CREATE TYPE "OrderStatus" AS ENUM ('pending', 'processing', 'shipped', 'delivered', 'cancelled');
-
--- CreateEnum
-CREATE TYPE "PaymentStatus" AS ENUM ('pending', 'processing', 'completed', 'failed', 'refunded');
-
--- CreateEnum
-CREATE TYPE "Role" AS ENUM ('guest', 'customer', 'admin', 'warehouse');
-
 -- CreateTable
 CREATE TABLE "User" (
     "user_id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "password_hash" TEXT NOT NULL,
-    "role" "Role" NOT NULL DEFAULT 'customer',
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "role" TEXT NOT NULL DEFAULT 'customer',
+    "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("user_id")
 );
@@ -24,12 +15,12 @@ CREATE TABLE "Product" (
     "product_id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "brand" TEXT NOT NULL,
-    "price" DECIMAL(65,30) NOT NULL,
+    "price" DECIMAL NOT NULL,
     "stock" INTEGER NOT NULL,
     "description" TEXT,
     "image_url" TEXT,
-    "specifications" JSONB NOT NULL,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "specifications" TEXT NOT NULL,
+    "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Product_pkey" PRIMARY KEY ("product_id")
 );
@@ -38,9 +29,9 @@ CREATE TABLE "Product" (
 CREATE TABLE "Order" (
     "order_id" TEXT NOT NULL,
     "user_id" TEXT NOT NULL,
-    "total_price" DECIMAL(65,30) NOT NULL,
-    "status" "OrderStatus" NOT NULL DEFAULT 'pending',
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "total_price" DECIMAL NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Order_pkey" PRIMARY KEY ("order_id")
 );
@@ -51,7 +42,7 @@ CREATE TABLE "OrderItem" (
     "order_id" TEXT NOT NULL,
     "product_id" TEXT NOT NULL,
     "quantity" INTEGER NOT NULL,
-    "price" DECIMAL(65,30) NOT NULL,
+    "price" DECIMAL NOT NULL,
 
     CONSTRAINT "OrderItem_pkey" PRIMARY KEY ("order_item_id")
 );
@@ -61,8 +52,8 @@ CREATE TABLE "Payment" (
     "payment_id" TEXT NOT NULL,
     "order_id" TEXT NOT NULL,
     "payment_method" TEXT NOT NULL,
-    "payment_status" "PaymentStatus" NOT NULL DEFAULT 'pending',
-    "payment_date" TIMESTAMP(3),
+    "payment_status" TEXT NOT NULL DEFAULT 'pending',
+    "payment_date" DATETIME,
 
     CONSTRAINT "Payment_pkey" PRIMARY KEY ("payment_id")
 );
@@ -74,8 +65,8 @@ CREATE TABLE "Review" (
     "user_id" TEXT NOT NULL,
     "rating" INTEGER NOT NULL,
     "comment" TEXT NOT NULL,
-    "sentiment_score" DOUBLE PRECISION NOT NULL,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "sentiment_score" REAL NOT NULL,
+    "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Review_pkey" PRIMARY KEY ("review_id")
 );
@@ -84,7 +75,7 @@ CREATE TABLE "Review" (
 CREATE TABLE "VectorStore" (
     "vector_id" TEXT NOT NULL,
     "product_id" TEXT NOT NULL,
-    "embedding" JSONB NOT NULL,
+    "embedding" TEXT NOT NULL,
     "content" TEXT NOT NULL,
 
     CONSTRAINT "VectorStore_pkey" PRIMARY KEY ("vector_id")

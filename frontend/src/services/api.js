@@ -121,5 +121,25 @@ export async function submitReview(payload) {
 }
 
 export async function fetchAISuggestions(query, limit = 3) {
-  return request(`/ai/suggestions${buildQuery({ q: query, limit })}`)
+  const cleanQuery = String(query ?? '').trim()
+  if (!cleanQuery) {
+    return { success: true, data: [], answer: '' }
+  }
+  return request(`/ai/suggestions${buildQuery({ q: cleanQuery, limit })}`)
+}
+
+export async function chatWithAI({ message, history = [], topK = 5 }) {
+  const cleanMessage = String(message ?? '').trim()
+  if (!cleanMessage) {
+    throw new Error('Message is required')
+  }
+
+  return request('/ai/chat', {
+    method: 'POST',
+    body: JSON.stringify({
+      message: cleanMessage,
+      history,
+      top_k: Math.max(1, Math.min(10, Number(topK) || 5)),
+    }),
+  })
 }

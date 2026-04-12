@@ -1,16 +1,9 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
-import { ShoppingCart, Search, Menu, X, Smartphone, Bot } from 'lucide-react'
+import { ShoppingCart, Search, Menu, X, Smartphone } from 'lucide-react'
 import { getRoleLabel, useAuth } from '../context/AuthContext'
 import { getCart, useCartSync } from '../store/cartStore'
-
-const homeQuickLinks = [
-  { to: '/?q=iphone', label: 'iPhone' },
-  { to: '/?q=samsung', label: 'Samsung' },
-  { to: '/?q=laptop', label: 'Laptop' },
-  { to: '/?q=xiaomi', label: 'Xiaomi' },
-  { to: '/?q=oppo', label: 'OPPO' },
-]
+import ChatbotWidget from '../components/ai/ChatbotWidget'
 
 export default function CustomerLayout() {
   const [mobileMenu, setMobileMenu] = useState(false)
@@ -153,22 +146,6 @@ export default function CustomerLayout() {
           </div>
         </div>
 
-        {isHome && (
-          <div className="border-t border-slate-200 bg-white">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2 flex flex-wrap gap-2">
-              {homeQuickLinks.map(item => (
-                <Link
-                  key={item.label}
-                  to={item.to}
-                  className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 text-sm font-medium hover:bg-slate-200 hover:text-[#2563eb] transition-all"
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Mobile menu */}
         {mobileMenu && (
           <div className="md:hidden px-4 pb-4 pt-3 space-y-2 border-t border-slate-200 bg-white">
@@ -238,76 +215,5 @@ export default function CustomerLayout() {
 }
 
 function AIFloatingChat({ light = false }) {
-  const [open, setOpen] = useState(false)
-  const [messages, setMessages] = useState([
-    { role: 'ai', text: 'Xin chào! Tôi là AI Agent của SmartMobile. Bạn cần tư vấn sản phẩm gì không?' }
-  ])
-  const [input, setInput] = useState('')
-  const [typing, setTyping] = useState(false)
-
-  const send = () => {
-    if (!input.trim()) return
-    setMessages(p => [...p, { role: 'user', text: input }])
-    setInput('')
-    setTyping(true)
-    setTimeout(() => {
-      setMessages(p => [...p, { role: 'ai', text: 'Cảm ơn bạn đã hỏi! Tôi đang phân tích nhu cầu của bạn. Với ngân sách đó, tôi gợi ý iPhone 15 Pro hoặc Samsung S24 Ultra.' }])
-      setTyping(false)
-    }, 1500)
-  }
-
-  return (
-    <div className="fixed bottom-6 right-6 z-50">
-      {open && (
-        <div className={`mb-4 w-80 rounded-2xl shadow-2xl border flex flex-col overflow-hidden ${light ? 'bg-white border-slate-200' : 'glass border-indigo-500/30'}`} style={{ height: 420 }}>
-          <div className={`p-4 border-b flex items-center gap-3 ${light ? 'border-slate-200 bg-slate-50' : 'border-indigo-500/20'}`}>
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${light ? 'btn-retail' : 'btn-glow'}`}>
-              <Bot size={18} className="text-white" />
-            </div>
-            <div>
-              <p className={`text-sm font-semibold ${light ? 'text-slate-900' : 'text-white'}`}>AI Tư vấn</p>
-              <p className="text-xs text-green-400 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 bg-green-400 rounded-full inline-block"></span> Online
-              </p>
-            </div>
-            <button onClick={() => setOpen(false)} className={`ml-auto ${light ? 'text-slate-400 hover:text-slate-700' : 'text-slate-400 hover:text-white'}`}><X size={18} /></button>
-          </div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {messages.map((m, i) => (
-              <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[75%] px-3 py-2 rounded-xl text-sm ${m.role === 'user' ? 'bg-[#2563eb] text-white' : light ? 'bg-slate-100 text-slate-700' : 'bg-white/8 text-slate-200'}`}>
-                  {m.text}
-                </div>
-              </div>
-            ))}
-            {typing && (
-              <div className="flex justify-start">
-                <div className={`px-3 py-2 rounded-xl flex gap-1 ${light ? 'bg-slate-100' : 'bg-white/8'}`}>
-                  <span className="typing-dot w-2 h-2 bg-slate-400 rounded-full"></span>
-                  <span className="typing-dot w-2 h-2 bg-slate-400 rounded-full"></span>
-                  <span className="typing-dot w-2 h-2 bg-slate-400 rounded-full"></span>
-                </div>
-              </div>
-            )}
-          </div>
-          <div className={`p-3 border-t flex gap-2 ${light ? 'border-slate-200 bg-white' : 'border-indigo-500/20'}`}>
-            <input
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && send()}
-              placeholder="Nhập câu hỏi..."
-              className={`flex-1 rounded-lg px-3 py-2 text-sm focus:outline-none ${light ? 'bg-slate-50 border border-slate-300 text-slate-900 placeholder-slate-400 focus:border-[#2563eb]' : 'bg-white/5 border border-indigo-500/30 text-white placeholder-slate-500 focus:border-indigo-400'}`}
-            />
-            <button onClick={send} className={`px-3 py-2 rounded-lg text-white text-sm font-medium ${light ? 'btn-retail' : 'btn-glow'}`}>Gửi</button>
-          </div>
-        </div>
-      )}
-      <button
-        onClick={() => setOpen(!open)}
-        className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-xl ${light ? 'btn-retail' : 'btn-glow'}`}
-      >
-        <Bot size={26} />
-      </button>
-    </div>
-  )
+  return <ChatbotWidget light={light} />
 }
