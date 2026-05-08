@@ -6,6 +6,7 @@ from urllib.parse import unquote
 
 from app.api.v1.api import api_router
 from app.core.config import ALLOWED_HEADERS, ALLOWED_METHODS, ALLOWED_ORIGINS
+from app.db.init_db import init_database
 
 app = FastAPI(title='Smartmobile API', version='1.0.0')
 
@@ -18,6 +19,11 @@ app.add_middleware(
 )
 
 app.include_router(api_router)
+
+
+@app.on_event('startup')
+async def startup_event():
+    await init_database()
 
 
 @app.get('/health')

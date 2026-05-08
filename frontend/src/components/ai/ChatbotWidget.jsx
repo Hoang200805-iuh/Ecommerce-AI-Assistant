@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Bot, Send, X } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Bot, Send, ShoppingCart, X, Zap } from 'lucide-react'
 import { chatWithAI } from '../../services/api.js'
+import { useAuth } from '../../context/AuthContext'
+import { addToCart } from '../../store/cartStore.js'
 
 const INITIAL_MESSAGE = 'Xin chào! Mình là trợ lý tư vấn SmartMobile. Bạn hãy nói nhu cầu như tầm giá, hãng, pin, camera hoặc hiệu năng để mình gợi ý chính xác hơn.'
 
@@ -17,16 +20,27 @@ function mapHistory(messages) {
 		.map(item => ({ role: item.role, content: item.content }))
 }
 
+function resolveProductId(product) {
+	const rawId = product?.id ?? product?.product_id ?? product?.productId
+	const value = Number(rawId)
+	if (!Number.isFinite(value) || value <= 0) return null
+	return value
+}
+
 export default function ChatbotWidget({ light = false }) {
+	const navigate = useNavigate()
+	const { user } = useAuth()
 	const [isOpen, setIsOpen] = useState(false)
 	const [input, setInput] = useState('')
 	const [isSending, setIsSending] = useState(false)
 	const [products, setProducts] = useState([])
+	const [actionFeedback, setActionFeedback] = useState('')
 	const [messages, setMessages] = useState([
 		{ role: 'assistant', content: INITIAL_MESSAGE },
 	])
 	const [error, setError] = useState('')
 	const scrollRef = useRef(null)
+	const feedbackTimerRef = useRef(null)
 
 	const shellClass = useMemo(
 		() => (light
@@ -40,6 +54,73 @@ export default function ChatbotWidget({ light = false }) {
 		if (!viewport) return
 		viewport.scrollTop = viewport.scrollHeight
 	}, [messages, isSending])
+
+	useEffect(() => () => {
+		if (feedbackTimerRef.current) {
+			window.clearTimeout(feedbackTimerRef.current)
+		}
+	}, [])
+
+	const pushFeedback = (message) => {
+		setActionFeedback(message)
+		if (feedbackTimerRef.current) {
+			window.clearTimeout(feedbackTimerRef.current)
+		}
+		feedbackTimerRef.current = window.setTimeout(() => {
+			setActionFeedback('')
+		}, 2400)
+	}
+
+	const requireCustomerRole = () => {
+		if (!user) {
+			pushFeedback('Vui lòng đăng nhập tài khoản khách hàng để đặt mua.')
+			navigate('/login', { state: { from: { pathname: '/checkout' } } })
+			return false
+		}
+
+		if (user.role !== 'customer') {
+			pushFeedback('Tài khoản hiện tại không có quyền đặt hàng trên trang khách.')
+			return false
+		}
+
+		return true
+	}
+
+	const addSuggestedProductToCart = (product) => {
+		const productId = resolveProductId(product)
+		if (!productId) {
+			pushFeedback('Không xác định được sản phẩm để thêm vào giỏ.')
+			return
+		}
+
+		if (Number(product.stock ?? 0) <= 0) {
+			pushFeedback('Sản phẩm này đang tạm hết hàng.')
+			return
+		}
+
+		if (!requireCustomerRole()) return
+
+		addToCart({ ...product, id: productId }, 1)
+		pushFeedback(`Đã thêm ${product.name} vào giỏ hàng.`)
+	}
+
+	const buySuggestedProductNow = (product) => {
+		const productId = resolveProductId(product)
+		if (!productId) {
+			pushFeedback('Không xác định được sản phẩm để đặt hàng.')
+			return
+		}
+
+		if (Number(product.stock ?? 0) <= 0) {
+			pushFeedback('Sản phẩm này đang tạm hết hàng.')
+			return
+		}
+
+		if (!requireCustomerRole()) return
+
+		addToCart({ ...product, id: productId }, 1)
+		navigate('/checkout')
+	}
 
 	const sendMessage = async () => {
 		const prompt = input.trim()
@@ -140,19 +221,49 @@ export default function ChatbotWidget({ light = false }) {
 								Sản phẩm gợi ý
 							</p>
 							<div className="space-y-2">
-								{products.map(product => (
-									<article key={product.id} className={`rounded-xl border px-3 py-2 ${light ? 'border-slate-200 bg-white' : 'border-slate-700 bg-slate-900/45'}`}>
+								{products.map(product => {
+									const productId = resolveProductId(product)
+									const canOrder = Boolean(productId) && Number(product.stock ?? 0) > 0
+
+									return (
+									<article key={productId || product.name} className={`rounded-xl border px-3 py-2 ${light ? 'border-slate-200 bg-white' : 'border-slate-700 bg-slate-900/45'}`}>
 										<p className={`text-sm font-semibold ${light ? 'text-slate-900' : 'text-white'}`}>{product.name}</p>
 										<p className={`text-xs ${light ? 'text-slate-500' : 'text-slate-300'}`}>
 											{product.brand} | RAM {product.ram || 'N/A'} | ROM {product.rom || 'N/A'}
 										</p>
 										<div className="mt-1 flex items-center justify-between">
 											<span className="text-sm font-bold text-[#2563eb]">{product.price_text || formatPrice(product.price)}</span>
-											<span className={`text-xs ${light ? 'text-emerald-600' : 'text-emerald-400'}`}>Kho: {product.stock ?? 0}</span>
+											<span className={`text-xs ${Number(product.stock ?? 0) > 0 ? (light ? 'text-emerald-600' : 'text-emerald-400') : (light ? 'text-rose-600' : 'text-rose-400')}`}>Kho: {product.stock ?? 0}</span>
+										</div>
+
+										<div className="mt-2 grid grid-cols-2 gap-2">
+											<button
+												type="button"
+												onClick={() => addSuggestedProductToCart(product)}
+												disabled={!canOrder}
+												className={`inline-flex items-center justify-center gap-1 rounded-lg border px-2 py-1.5 text-[11px] font-semibold transition-all ${canOrder ? (light ? 'border-slate-300 bg-slate-100 text-slate-700 hover:border-[#2563eb]/50 hover:text-[#2563eb]' : 'border-indigo-500/30 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20') : 'cursor-not-allowed border-slate-300 bg-slate-100 text-slate-400 opacity-70'}`}
+											>
+												<ShoppingCart size={13} /> Thêm giỏ
+											</button>
+											<button
+												type="button"
+												onClick={() => buySuggestedProductNow(product)}
+												disabled={!canOrder}
+												className={`inline-flex items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[11px] font-semibold text-white transition-all ${canOrder ? (light ? 'btn-retail' : 'btn-glow') : 'cursor-not-allowed bg-slate-400 opacity-60'}`}
+											>
+												<Zap size={13} /> Đặt ngay
+											</button>
 										</div>
 									</article>
-								))}
+									)
+								})}
 							</div>
+
+							{actionFeedback && (
+								<p className={`mt-2 rounded-lg px-2.5 py-1.5 text-xs ${light ? 'border border-slate-200 bg-white text-slate-700' : 'border border-indigo-500/30 bg-indigo-500/10 text-indigo-200'}`}>
+									{actionFeedback}
+								</p>
+							)}
 						</div>
 					)}
 

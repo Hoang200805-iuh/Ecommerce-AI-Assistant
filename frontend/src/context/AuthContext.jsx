@@ -1,15 +1,24 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { registerCustomerAccount } from '../services/api.js'
+import {
+  loginWithGoogleAccount,
+  loginWithFacebookAccount,
+  loginUserAccount,
+  registerCustomerAccount,
+  requestRegisterEmailOtp,
+  verifyRegisterEmailOtp,
+} from '../services/api.js'
 
 const STORAGE_KEYS = {
   session: 'smartmobile_session',
-  users: 'smartmobile_custom_users',
 }
 
+const PHONE_REGEX = /^(0|\+84)\d{8,10}$/
+const VIRTUAL_EMAIL_SUFFIX = '@phone.smartmobile.local'
+
 const seedUsers = [
-  { name: 'Nguyễn Văn Khách', email: 'customer@smartmobile.vn', password: 'customer123', role: 'customer' },
-  { name: 'Nguyễn Văn Admin', email: 'admin@smartmobile.vn', password: 'admin123', role: 'admin' },
-  { name: 'Lê Minh Kho', email: 'kho@smartmobile.vn', password: 'kho123', role: 'warehouse' },
+  { name: 'Nguyễn Văn Khách', email: 'customer@smartmobile.vn', phone: '0905000001', password: 'customer123', role: 'customer' },
+  { name: 'Nguyễn Văn Admin', email: 'admin@smartmobile.vn', phone: '0905000002', password: 'admin123', role: 'admin' },
+  { name: 'Lê Minh Kho', email: 'kho@smartmobile.vn', phone: '0905000003', password: 'kho123', role: 'warehouse' },
 ]
 
 const roleLabels = {
@@ -50,6 +59,32 @@ function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase()
 }
 
+function normalizePhone(phone) {
+  const digits = String(phone || '').trim().replace(/\D/g, '')
+  if (digits.startsWith('84')) {
+    return `0${digits.slice(2)}`
+  }
+  return digits
+}
+
+function isVirtualEmail(email) {
+  return normalizeEmail(email).endsWith(VIRTUAL_EMAIL_SUFFIX)
+}
+
+function toSafeSessionUser(user) {
+  const email = normalizeEmail(user?.email)
+  const rawDisplayEmail = String(user?.display_email ?? '').trim()
+  const displayEmail = rawDisplayEmail || (isVirtualEmail(email) ? '' : email)
+
+  return {
+    name: String(user?.name || '').trim(),
+    email,
+    displayEmail,
+    phone: normalizePhone(user?.phone),
+    role: String(user?.role || 'customer').trim() || 'customer',
+  }
+}
+
 export function getRoleLabel(role) {
   return roleLabels[role] ?? 'Khách hàng'
 }
@@ -60,7 +95,6 @@ export function getHomePath(role) {
 
 export function AuthProvider({ children }) {
   const [sessionUser, setSessionUser] = useState(() => readStoredValue(STORAGE_KEYS.session, null))
-  const [customUsers, setCustomUsers] = useState(() => readStoredValue(STORAGE_KEYS.users, []))
 
   useEffect(() => {
     writeStoredValue(STORAGE_KEYS.session, sessionUser)
@@ -69,67 +103,173 @@ export function AuthProvider({ children }) {
     }
   }, [sessionUser])
 
-  useEffect(() => {
-    writeStoredValue(STORAGE_KEYS.users, customUsers)
-  }, [customUsers])
-
-  const allUsers = useMemo(() => [...seedUsers, ...customUsers], [customUsers])
-
-  const login = useCallback(async ({ email, password, role }) => {
-    const targetEmail = normalizeEmail(email)
-    const matched = allUsers.find(user => {
+  const login = useCallback(async ({ identifier, password, role }) => {
+    const targetIdentifier = String(identifier || '').trim()
+    const targetEmail = normalizeEmail(targetIdentifier)
+    const targetPhone = normalizePhone(targetIdentifier)
+    const localSeedUser = seedUsers.find(user => {
       const sameEmail = normalizeEmail(user.email) === targetEmail
+      const samePhone = normalizePhone(user.phone) === targetPhone
       const samePassword = user.password === password
       const sameRole = !role || user.role === role
-      return sameEmail && samePassword && sameRole
+      return (sameEmail || samePhone) && samePassword && sameRole
     })
 
-    if (!matched) {
-      throw new Error('Email, mật khẩu hoặc vai trò không đúng.')
+    try {
+      const payload = await loginUserAccount({ identifier: targetIdentifier, password })
+      const remoteUser = payload?.data
+      if (!remoteUser) {
+        throw new Error('Không nhận được dữ liệu người dùng từ máy chủ.')
+      }
+
+      const safeUser = toSafeSessionUser(remoteUser)
+      setSessionUser(safeUser)
+      return safeUser
+    } catch (error) {
+      if (!localSeedUser) {
+        throw error
+      }
+
+      const safeUser = toSafeSessionUser(localSeedUser)
+      setSessionUser(safeUser)
+      return safeUser
+    }
+  }, [])
+
+  const registerCustomer = useCallback(async ({ name, phone, password, confirmPassword, method = 'phone' }) => {
+    const trimmedName = String(name || '').trim()
+    const normalizedPhone = normalizePhone(phone)
+
+    if (method !== 'phone') {
+      throw new Error('Phương thức đăng ký không hợp lệ.')
     }
 
-    const safeUser = { name: matched.name, email: matched.email, role: matched.role }
-    setSessionUser(safeUser)
-    return safeUser
-  }, [allUsers])
-
-  const registerCustomer = useCallback(async ({ name, email, phone, password, confirmPassword }) => {
-    const trimmedName = String(name || '').trim()
-    const trimmedEmail = normalizeEmail(email)
-    const trimmedPhone = String(phone || '').trim()
-
-    if (!trimmedName || !trimmedEmail || !password) {
+    if (!trimmedName || !normalizedPhone || !password) {
       throw new Error('Vui lòng nhập đầy đủ thông tin.')
+    }
+
+    if (!PHONE_REGEX.test(normalizedPhone)) {
+      throw new Error('Số điện thoại không hợp lệ.')
+    }
+
+    if (String(password).trim().length < 8) {
+      throw new Error('Mật khẩu phải có ít nhất 8 ký tự.')
     }
 
     if (password !== confirmPassword) {
       throw new Error('Mật khẩu xác nhận không khớp.')
     }
 
-    if (allUsers.some(user => normalizeEmail(user.email) === trimmedEmail)) {
-      throw new Error('Email này đã được sử dụng.')
-    }
-
-    const newUser = {
+    const result = await registerCustomerAccount({
       name: trimmedName,
-      email: trimmedEmail,
-      phone: trimmedPhone,
+      phone: normalizedPhone,
       password,
+      registerMethod: 'phone',
+    })
+
+    const createdUser = result?.data
+    const safeUser = toSafeSessionUser(createdUser || {
+      name: trimmedName,
+      email: '',
+      display_email: '',
+      phone: normalizedPhone,
       role: 'customer',
+    })
+    setSessionUser(safeUser)
+    return safeUser
+  }, [])
+
+  const requestEmailSignupOtp = useCallback(async ({ name, email, phone, password, confirmPassword }) => {
+    const trimmedName = String(name || '').trim()
+    const trimmedEmail = normalizeEmail(email)
+    const normalizedPhone = normalizePhone(phone)
+
+    if (!trimmedName || !trimmedEmail || !password) {
+      throw new Error('Vui lòng nhập đầy đủ họ tên, email và mật khẩu.')
     }
 
-    await registerCustomerAccount({
+    if (String(password).trim().length < 8) {
+      throw new Error('Mật khẩu phải có ít nhất 8 ký tự.')
+    }
+
+    if (password !== confirmPassword) {
+      throw new Error('Mật khẩu xác nhận không khớp.')
+    }
+
+    if (normalizedPhone && !PHONE_REGEX.test(normalizedPhone)) {
+      throw new Error('Số điện thoại không hợp lệ.')
+    }
+
+    const result = await requestRegisterEmailOtp({
       name: trimmedName,
       email: trimmedEmail,
-      phone: trimmedPhone,
+      phone: normalizedPhone || undefined,
       password,
     })
 
-    setCustomUsers(prev => [...prev, newUser])
-    const safeUser = { name: newUser.name, email: newUser.email, role: newUser.role }
+    return result?.message || `Đã gửi OTP tới ${trimmedEmail}`
+  }, [])
+
+  const verifyEmailSignupOtp = useCallback(async ({ email, otp }) => {
+    const trimmedEmail = normalizeEmail(email)
+    const trimmedOtp = String(otp || '').trim()
+
+    if (!trimmedEmail || !trimmedOtp) {
+      throw new Error('Vui lòng nhập email và mã OTP.')
+    }
+
+    const result = await verifyRegisterEmailOtp({
+      email: trimmedEmail,
+      otp: trimmedOtp,
+    })
+
+    const createdUser = result?.data
+    const safeUser = toSafeSessionUser(createdUser || {
+      name: '',
+      email: trimmedEmail,
+      display_email: trimmedEmail,
+      phone: '',
+      role: 'customer',
+    })
     setSessionUser(safeUser)
     return safeUser
-  }, [allUsers])
+  }, [])
+
+  const loginWithGoogle = useCallback(async ({ idToken }) => {
+    const token = String(idToken || '').trim()
+    if (!token) {
+      throw new Error('Thiếu Google token đăng nhập.')
+    }
+
+    const payload = await loginWithGoogleAccount({ idToken: token })
+    const remoteUser = payload?.data
+    if (!remoteUser) {
+      throw new Error('Không nhận được dữ liệu người dùng từ máy chủ.')
+    }
+
+    const safeUser = toSafeSessionUser(remoteUser)
+    setSessionUser(safeUser)
+    return safeUser
+  }, [])
+
+  const loginWithFacebook = useCallback(async ({ accessToken }) => {
+    const token = String(accessToken || '').trim()
+    if (!token) {
+      throw new Error('Thiếu Facebook token đăng nhập.')
+    }
+
+    const payload = await loginWithFacebookAccount({ accessToken: token })
+    const remoteUser = payload?.data
+    if (!remoteUser) {
+      throw new Error('Không nhận được dữ liệu người dùng từ máy chủ.')
+    }
+
+    const safeUser = toSafeSessionUser(remoteUser)
+    setSessionUser(safeUser)
+    return safeUser
+  }, [])
+
+  
 
   const logout = useCallback(() => {
     setSessionUser(null)
@@ -139,11 +279,15 @@ export function AuthProvider({ children }) {
     user: sessionUser,
     isAuthenticated: Boolean(sessionUser),
     login,
+    loginWithGoogle,
+    loginWithFacebook,
     registerCustomer,
+    requestEmailSignupOtp,
+    verifyEmailSignupOtp,
     logout,
     getHomePath,
     getRoleLabel,
-  }), [sessionUser, login, registerCustomer, logout])
+  }), [sessionUser, login, loginWithGoogle, loginWithFacebook, registerCustomer, requestEmailSignupOtp, verifyEmailSignupOtp, logout])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

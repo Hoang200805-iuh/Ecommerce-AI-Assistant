@@ -4,7 +4,17 @@ import { createOrder } from '../../services/api.js'
 import { clearCart, getCart, useCartSync } from '../../store/cartStore.js'
 import { useAuth } from '../../context/AuthContext'
 import { CHECKOUT_STEPS, INITIAL_FORM, PAYMENT_METHODS, QR_BANK } from '../../features/checkout/checkout.constants.js'
-import { buildQrImageUrl, buildQrTransferContent, computeSubtotal, formatCurrency, getPaymentLabel } from '../../features/checkout/checkout.utils.js'
+import {
+  buildQrImageUrl,
+  buildQrTransferContent,
+  buildReceiptFromOrder,
+  computeSubtotal,
+  formatCurrency,
+  getPaymentLabel,
+  normalizeCheckoutForm,
+  validateCheckoutConstraints,
+  validateShippingForm,
+} from '../../features/checkout/checkout.utils.js'
 import CheckoutStepProgress from '../../features/checkout/components/CheckoutStepProgress.jsx'
 import CheckoutShippingStep from '../../features/checkout/components/CheckoutShippingStep.jsx'
 import CheckoutPaymentStep from '../../features/checkout/components/CheckoutPaymentStep.jsx'
@@ -20,8 +30,10 @@ export default function Checkout() {
   const [qrRef] = useState(() => `SM${Date.now().toString().slice(-8)}`)
   // Keep all shipping inputs in one object so API payload mapping stays simple.
   const [form, setForm] = useState(INITIAL_FORM)
+  const [formErrors, setFormErrors] = useState({})
   const [success, setSuccess] = useState(false)
   const [orderId, setOrderId] = useState('')
+  const [receipt, setReceipt] = useState(null)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [items, setItems] = useState(() => getCart())
@@ -41,7 +53,8 @@ export default function Checkout() {
       setForm(current => ({
         ...current,
         name: current.name || user.name || '',
-        email: current.email || user.email || '',
+        email: current.email || user.displayEmail || '',
+        phone: current.phone || user.phone || '',
       }))
     }
   }, [user])
@@ -60,7 +73,44 @@ export default function Checkout() {
   }), [subtotal, qrTransferContent])
   const paymentLabel = useMemo(() => getPaymentLabel(PAYMENT_METHODS, payment), [payment])
 
-  const handleChange = e => setForm(f => ({ ...f, [e.target.name]: e.target.value }))
+  const handleChange = (e) => {
+    const { name, value } = e.target
+
+    setForm(current => ({ ...current, [name]: value }))
+    setFormErrors(current => {
+      if (!current[name]) return current
+
+      const next = { ...current }
+      delete next[name]
+      return next
+    })
+    setError('')
+  }
+
+  const handleShippingNext = () => {
+    const { normalized, errors } = validateShippingForm(form)
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors)
+      setError('Vui lòng kiểm tra lại thông tin giao hàng.')
+      return
+    }
+
+    setForm(normalized)
+    setFormErrors({})
+    setError('')
+    setStep(2)
+  }
+
+  const handlePaymentNext = () => {
+    if (!PAYMENT_METHODS.some(method => method.id === payment)) {
+      setError('Vui lòng chọn phương thức thanh toán hợp lệ.')
+      return
+    }
+
+    setError('')
+    setStep(3)
+  }
 
   const copyToClipboard = async (value, field) => {
     try {
@@ -75,19 +125,37 @@ export default function Checkout() {
   }
 
   const handleOrder = async () => {
+    const validation = validateCheckoutConstraints({ form, items, payment, qrConfirmed })
+    if (!validation.ok) {
+      setFormErrors(validation.errors)
+      setError(validation.message)
+      return
+    }
+
+    const normalizedForm = normalizeCheckoutForm(validation.normalized)
+    setForm(normalizedForm)
+    setFormErrors({})
     setError('')
     setSubmitting(true)
 
     try {
       const response = await createOrder({
-        customer: form,
+        customer: normalizedForm,
         paymentMethod: payment,
         items,
         user,
       })
 
       const result = response.data || response
+      const receiptData = buildReceiptFromOrder({
+        result,
+        form: normalizedForm,
+        items,
+        paymentLabel,
+      })
+
       setOrderId(result.orderId)
+      setReceipt(receiptData)
       setSuccess(true)
       clearCart()
       setItems([])
@@ -99,7 +167,7 @@ export default function Checkout() {
   }
 
   if (success) {
-    return <CheckoutSuccessView orderId={orderId} />
+    return <CheckoutSuccessView orderId={orderId} receipt={receipt} />
   }
 
   return (
@@ -122,7 +190,8 @@ export default function Checkout() {
             <CheckoutShippingStep
               form={form}
               onChange={handleChange}
-              onNext={() => setStep(2)}
+              onNext={handleShippingNext}
+              errors={formErrors}
             />
           )}
 
@@ -132,7 +201,7 @@ export default function Checkout() {
               payment={payment}
               onPaymentChange={setPayment}
               onBack={() => setStep(1)}
-              onNext={() => setStep(3)}
+              onNext={handlePaymentNext}
               qrInfo={{
                 bank: QR_BANK,
                 qrImageUrl,

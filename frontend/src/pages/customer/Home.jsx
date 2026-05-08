@@ -383,11 +383,8 @@ export default function Home() {
       </section>
 
       <section id="product-list" className="max-w-7xl mx-auto px-4 pb-16 pt-4">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
+        <div className="flex justify-center">
+          <div className="flex w-full flex-wrap justify-center gap-2">
             {query.trim() && (
               <button onClick={clearSearch} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:border-[#2563eb]/30 hover:text-[#2563eb]">
                 Xóa tìm kiếm

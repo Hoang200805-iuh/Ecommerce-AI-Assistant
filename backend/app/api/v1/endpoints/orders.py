@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+import re
 import uuid
 from app.db.session import get_db
 from app.models import Phone, Order, OrderItem, Payment, User
@@ -8,25 +9,64 @@ from app.schemas import OrderCreate, OrderCancel
 
 router = APIRouter(prefix="/api/orders")
 
+EMAIL_REGEX = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+PHONE_REGEX = re.compile(r"^(0|\+84)\d{8,10}$")
+MAX_ITEMS_PER_ORDER = 30
+MAX_ITEM_QUANTITY = 20
+
+
+def _clean_text(value: str) -> str:
+    return (value or "").strip()
+
 @router.post("")
 async def create_order(payload: OrderCreate, db: AsyncSession = Depends(get_db)):
     customer = payload.customer
     user = payload.user
     items = payload.items
-    paymentMethod = payload.paymentMethod.strip()
-    normalized_payment_method = paymentMethod.lower()
+    payment_method = _clean_text(payload.paymentMethod)
+    normalized_payment_method = payment_method.lower()
     allowed_payment_methods = {"qr", "cod"}
+    customer_name = _clean_text(customer.name)
+    customer_email = _clean_text(customer.email).lower()
+    customer_phone = re.sub(r"[\s.-]", "", _clean_text(customer.phone))
+    customer_address = _clean_text(customer.address)
+    customer_city = _clean_text(customer.city)
+    customer_note = _clean_text(customer.note)
     
-    if not customer.name or not customer.email or not customer.phone or \
-       not customer.address or not items or not paymentMethod:
+    if not customer_name or not customer_email or not customer_phone or \
+       not customer_address or not customer_city or not items or not payment_method:
         raise HTTPException(status_code=400, detail="Missing required order data")
+
+    if len(items) > MAX_ITEMS_PER_ORDER:
+        raise HTTPException(status_code=400, detail=f"Each order supports up to {MAX_ITEMS_PER_ORDER} products")
+
+    if len(customer_name) < 2:
+        raise HTTPException(status_code=400, detail="Customer name is too short")
+
+    if len(customer_address) < 6:
+        raise HTTPException(status_code=400, detail="Shipping address is too short")
+
+    if len(customer_city) < 2:
+        raise HTTPException(status_code=400, detail="Shipping city is required")
+
+    if len(customer_note) > 500:
+        raise HTTPException(status_code=400, detail="Order note is too long")
+
+    if not EMAIL_REGEX.match(customer_email):
+        raise HTTPException(status_code=400, detail="Customer email is invalid")
+
+    if not PHONE_REGEX.match(customer_phone):
+        raise HTTPException(status_code=400, detail="Customer phone is invalid")
 
     if normalized_payment_method not in allowed_payment_methods:
         raise HTTPException(status_code=400, detail="Payment method is not supported")
         
-    user_email = (user.email if user else customer.email).strip().lower()
-    user_name = (user.name if user and user.name else customer.name).strip()
-    user_role = (user.role if user else "customer").strip()
+    user_email = _clean_text(user.email if user else customer_email).lower()
+    user_name = _clean_text(user.name if user and user.name else customer_name)
+    user_role = _clean_text(user.role if user else "customer") or "customer"
+
+    if not EMAIL_REGEX.match(user_email):
+        raise HTTPException(status_code=400, detail="User email is invalid")
     
     # upsert user
     u_res = await db.execute(select(User).filter(User.email == user_email))
@@ -51,7 +91,12 @@ async def create_order(payload: OrderCreate, db: AsyncSession = Depends(get_db))
         if pid is None:
             raise HTTPException(status_code=400, detail="Invalid product in cart")
             
-        quantity = max(1, item.quantity or 1)
+        quantity = int(item.quantity or 0)
+        if quantity <= 0:
+            raise HTTPException(status_code=400, detail=f"Invalid quantity for product {pid}")
+
+        if quantity > MAX_ITEM_QUANTITY:
+            raise HTTPException(status_code=400, detail=f"Quantity cannot exceed {MAX_ITEM_QUANTITY} per product")
         
         p_res = await db.execute(select(Phone).filter(Phone.id == pid))
         product = p_res.scalars().first()
@@ -62,7 +107,10 @@ async def create_order(payload: OrderCreate, db: AsyncSession = Depends(get_db))
         if stock < quantity:
             raise HTTPException(status_code=400, detail=f"Not enough stock for {product.name}")
             
-        price = product.price or 0
+        price = int(round(product.price or 0))
+        if price <= 0:
+            raise HTTPException(status_code=400, detail=f"Product has invalid price: {product.name}")
+
         total_price += price * quantity
         
         normalized_items.append({
@@ -75,6 +123,9 @@ async def create_order(payload: OrderCreate, db: AsyncSession = Depends(get_db))
         })
         
         product.stock = stock - quantity
+
+    if total_price <= 0:
+        raise HTTPException(status_code=400, detail="Order total must be greater than 0")
         
     order_id = str(uuid.uuid4())
     new_order = Order(
@@ -82,12 +133,12 @@ async def create_order(payload: OrderCreate, db: AsyncSession = Depends(get_db))
         user_email=user_email,
         user_name=user_name,
         user_role=user_role,
-        shipping_name=customer.name.strip(),
-        shipping_email=customer.email.strip(),
-        shipping_phone=customer.phone.strip(),
-        shipping_address=customer.address.strip(),
-        shipping_city=(customer.city or "").strip(),
-        note=(customer.note or "").strip(),
+        shipping_name=customer_name,
+        shipping_email=customer_email,
+        shipping_phone=customer_phone,
+        shipping_address=customer_address,
+        shipping_city=customer_city,
+        note=customer_note,
         payment_method=normalized_payment_method,
         status="pending",
         total_price=total_price
@@ -152,6 +203,7 @@ async def get_user_orders(email: str, db: AsyncSession = Depends(get_db)):
 @router.patch("/{id}/cancel")
 async def cancel_order(id: str, payload: OrderCancel, db: AsyncSession = Depends(get_db)):
     user_email = payload.userEmail.strip().lower()
+    comment = (payload.comment or "").strip()
     if not id or not user_email:
         raise HTTPException(status_code=400, detail="Missing order information")
         
@@ -174,6 +226,14 @@ async def cancel_order(id: str, payload: OrderCancel, db: AsyncSession = Depends
         phone = p_res.scalars().first()
         if phone:
             phone.stock = (phone.stock or 0) + item.quantity
+
+    if comment:
+        cancel_note = f"[Khách huỷ] {comment}"
+        current_note = (order.note or "").strip()
+        if current_note:
+            order.note = f"{current_note}\n{cancel_note}" if cancel_note not in current_note else current_note
+        else:
+            order.note = cancel_note
             
     order.status = "cancelled"
     

@@ -3,9 +3,32 @@ from typing import Dict, List, Optional
 
 class UserRegistration(BaseModel):
     name: str
-    email: str
+    email: Optional[str] = None
     password: Optional[str] = None
     phone: Optional[str] = None
+    registerMethod: Optional[str] = "phone"
+
+class UserLogin(BaseModel):
+    identifier: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    password: str
+
+class UserGoogleLogin(BaseModel):
+    idToken: str
+
+class UserFacebookLogin(BaseModel):
+    accessToken: str
+
+class UserRegisterEmailOtpRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+    phone: Optional[str] = None
+
+class UserRegisterEmailOtpVerify(BaseModel):
+    email: str
+    otp: str
 
 class AdminUserCreate(BaseModel):
     name: str
@@ -76,6 +99,7 @@ class WarehouseProductCreate(BaseModel):
 
 class OrderCancel(BaseModel):
     userEmail: str
+    comment: Optional[str] = None
 
 class ErrorResponse(BaseModel):
     message: str

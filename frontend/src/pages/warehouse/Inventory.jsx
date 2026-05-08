@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { createPortal } from 'react-dom'
 import { AlertTriangle, ArrowUpDown, Check, Loader2, Package, Plus, RefreshCw, Search, ShieldAlert, X } from 'lucide-react'
 import { fetchWarehouseInventory, updateWarehouseInventory } from '../../services/api.js'
 
@@ -27,6 +28,7 @@ export default function Inventory() {
   const [error, setError] = useState('')
   const [editItem, setEditItem] = useState(null)
   const [form, setForm] = useState({ stock: '', minStock: '' })
+  const portalTarget = typeof document !== 'undefined' ? document.body : null
 
   const loadInventory = async () => {
     setLoading(true)
@@ -46,6 +48,26 @@ export default function Inventory() {
   useEffect(() => {
     loadInventory()
   }, [])
+
+  useEffect(() => {
+    if (!editItem) return undefined
+
+    const originalOverflow = document.body.style.overflow
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setEditItem(null)
+        setForm({ stock: '', minStock: '' })
+      }
+    }
+
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', handleEscape)
+
+    return () => {
+      document.body.style.overflow = originalOverflow
+      window.removeEventListener('keydown', handleEscape)
+    }
+  }, [editItem])
 
   const brands = useMemo(() => ['Tất cả', ...Array.from(new Set(inventory.map(item => item.brand))).filter(Boolean)], [inventory])
 
@@ -216,52 +238,55 @@ export default function Inventory() {
         </div>
       </div>
 
-      {editItem && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4">
-          <div className="glass rounded-3xl p-6 border border-amber-500/30 w-full max-w-md fade-in">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-white font-semibold text-lg">Cập nhật tồn kho</h2>
-              <button onClick={closeEdit} className="text-slate-400 hover:text-white"><X size={20} /></button>
-            </div>
-
-            <div className="space-y-4">
-              <div className="rounded-xl bg-white/5 border border-white/10 p-4">
-                <p className="text-white font-medium text-sm">{editItem.name}</p>
-                <p className="text-slate-500 text-xs mt-1">{editItem.brand} • {normalizeSku(editItem)}</p>
+      {editItem && portalTarget && createPortal(
+        <div className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm p-4 overflow-y-auto" onClick={closeEdit}>
+          <div className="min-h-full flex items-start sm:items-center justify-center py-6">
+            <div className="glass rounded-3xl p-6 border border-amber-500/30 w-full max-w-md fade-in text-slate-900" onClick={event => event.stopPropagation()}>
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="text-slate-900 font-semibold text-lg">Cập nhật tồn kho</h2>
+                <button onClick={closeEdit} className="text-slate-500 hover:text-slate-900"><X size={20} /></button>
               </div>
 
-              <div>
-                <label className="block text-slate-400 text-sm mb-1.5">Tồn kho hiện tại</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={form.stock}
-                  onChange={e => setForm(current => ({ ...current, stock: e.target.value }))}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-amber-500 transition-colors"
-                />
-              </div>
+              <div className="space-y-4">
+                <div className="rounded-xl bg-slate-50 border border-slate-200 p-4">
+                  <p className="text-slate-900 font-medium text-sm">{editItem.name}</p>
+                  <p className="text-slate-600 text-xs mt-1">{editItem.brand} • {normalizeSku(editItem)}</p>
+                </div>
 
-              <div>
-                <label className="block text-slate-400 text-sm mb-1.5">Mức tối thiểu</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={form.minStock}
-                  onChange={e => setForm(current => ({ ...current, minStock: e.target.value }))}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-amber-500 transition-colors"
-                />
-              </div>
+                <div>
+                  <label className="block text-slate-700 text-sm mb-1.5">Tồn kho hiện tại</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.stock}
+                    onChange={e => setForm(current => ({ ...current, stock: e.target.value }))}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 text-sm focus:outline-none focus:border-amber-500 transition-colors"
+                  />
+                </div>
 
-              <div className="flex gap-3 pt-2">
-                <button onClick={closeEdit} className="flex-1 bg-white/5 border border-white/10 text-white py-2.5 rounded-xl hover:bg-white/10 transition-all text-sm font-medium">Huỷ</button>
-                <button onClick={saveEdit} disabled={saving} className="flex-1 btn-glow text-white py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-70">
-                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-                  Lưu thay đổi
-                </button>
+                <div>
+                  <label className="block text-slate-700 text-sm mb-1.5">Mức tối thiểu</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.minStock}
+                    onChange={e => setForm(current => ({ ...current, minStock: e.target.value }))}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 text-sm focus:outline-none focus:border-amber-500 transition-colors"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button onClick={closeEdit} className="flex-1 bg-slate-100 border border-slate-200 text-slate-700 py-2.5 rounded-xl hover:bg-slate-200 transition-all text-sm font-medium">Huỷ</button>
+                  <button onClick={saveEdit} disabled={saving} className="flex-1 btn-glow text-white py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-70">
+                    {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                    Lưu thay đổi
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        portalTarget,
       )}
     </div>
   )

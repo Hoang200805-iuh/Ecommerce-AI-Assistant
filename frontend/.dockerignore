@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.vite/
+.cache/
+.idea/
+.vscode/
+npm-debug.log

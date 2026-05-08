@@ -18,7 +18,17 @@ const initialForm = {
   reviewCount: '0',
 }
 
-const initialSpecRows = [{ key: '', value: '' }]
+function createSpecRow() {
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+    key: '',
+    value: '',
+  }
+}
+
+function createInitialSpecRows() {
+  return [createSpecRow()]
+}
 
 function toNumber(value, fallback = 0) {
   const parsed = Number(value)
@@ -27,7 +37,7 @@ function toNumber(value, fallback = 0) {
 
 export default function WarehouseUploadProduct() {
   const [form, setForm] = useState(initialForm)
-  const [specRows, setSpecRows] = useState(initialSpecRows)
+  const [specRows, setSpecRows] = useState(createInitialSpecRows)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -55,13 +65,13 @@ export default function WarehouseUploadProduct() {
   }
 
   const addSpecRow = () => {
-    setSpecRows(current => [...current, { key: '', value: '' }])
+    setSpecRows(current => [...current, createSpecRow()])
   }
 
   const removeSpecRow = (index) => {
     setSpecRows(current => {
       if (current.length === 1) {
-        return initialSpecRows
+        return createInitialSpecRows()
       }
       return current.filter((_, rowIndex) => rowIndex !== index)
     })
@@ -69,7 +79,7 @@ export default function WarehouseUploadProduct() {
 
   const resetForm = () => {
     setForm(initialForm)
-    setSpecRows(initialSpecRows)
+    setSpecRows(createInitialSpecRows())
   }
 
   const submitProduct = async (event) => {
@@ -293,7 +303,7 @@ export default function WarehouseUploadProduct() {
 
           <div className="space-y-2">
             {specRows.map((row, index) => (
-              <div key={`${index}-${row.key}`} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-2">
+              <div key={row.id} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-2">
                 <input
                   value={row.key}
                   onChange={event => updateSpec(index, 'key', event.target.value)}

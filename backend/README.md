@@ -56,7 +56,12 @@ uvicorn main:app --reload --port 3001
 - `GET /api/products`
 - `GET /api/products/{id}`
 - `GET /api/brands`
-- `POST /api/users/register`
+- `POST /api/users/register` (dang ky bang so dien thoai, khong OTP)
+- `POST /api/users/register/request-otp` (gui OTP Gmail cho dang ky bang email)
+- `POST /api/users/register/verify-otp` (xac thuc OTP va tao tai khoan email)
+- `POST /api/users/login` (dang nhap bang email hoac so dien thoai)
+- `POST /api/users/google-login` (dang nhap nhanh bang Google)
+ 
 - `POST /api/orders`
 - `GET /api/orders/user/{email}`
 - `PATCH /api/orders/{id}/cancel`
@@ -69,3 +74,29 @@ uvicorn main:app --reload --port 3001
 - `POST /api/admin/users`
 - `PUT /api/admin/users/{id}`
 - `DELETE /api/admin/users/{id}`
+
+## 5. Cau hinh OTP Gmail
+
+Tao file `.env` trong thu muc `backend/`:
+
+```bash
+OTP_EMAIL_SMTP_HOST=smtp.gmail.com
+OTP_EMAIL_PORT=587
+OTP_EMAIL_USERNAME=your_gmail@gmail.com
+OTP_EMAIL_PASSWORD=your_app_password
+OTP_EMAIL_FROM=your_gmail@gmail.com
+OTP_EMAIL_EXPIRE_MINUTES=5
+GOOGLE_CLIENT_ID=your_google_oauth_web_client_id
+
+Example for PostgreSQL (used in Docker):
+
+```bash
+DATABASE_URL=postgresql+asyncpg://postgres:password@postgres:5432/smartmobile
+```
+```
+
+Luu y:
+- `OTP_EMAIL_PASSWORD` la App Password cua Gmail (khong dung mat khau dang nhap thuong).
+- Neu chua cau hinh SMTP, API gui OTP se bao loi cau hinh.
+- `GOOGLE_CLIENT_ID` duoc dung de xac minh token khi dang nhap nhanh bang Google.
+ 

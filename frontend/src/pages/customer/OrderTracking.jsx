@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Package, Truck, Search, ChevronDown, ChevronUp, RefreshCw, XCircle, Loader2 } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { MessageSquare, Package, Truck, Search, ChevronDown, ChevronUp, RefreshCw, X, XCircle, Loader2 } from 'lucide-react'
 import { cancelUserOrder, fetchUserOrders } from '../../services/api.js'
 import { useAuth } from '../../context/AuthContext'
 
@@ -15,6 +16,12 @@ const statusMap = {
   cancelled: { label: 'Đã huỷ', cls: 'status-cancelled' },
 }
 
+const cancelReasonOptions = [
+  { value: 'demand_changed', label: 'Thay đổi nhu cầu mua hàng' },
+  { value: 'wrong_address', label: 'Sai địa chỉ giao hàng' },
+  { value: 'other', label: 'Khác (ghi lý do)' },
+]
+
 export default function OrderTracking() {
   const [expanded, setExpanded] = useState(null)
   const [searchId, setSearchId] = useState('')
@@ -22,6 +29,11 @@ export default function OrderTracking() {
   const [loading, setLoading] = useState(true)
   const [cancellingId, setCancellingId] = useState('')
   const [message, setMessage] = useState('')
+  const [cancelTarget, setCancelTarget] = useState('')
+  const [cancelReason, setCancelReason] = useState('')
+  const [cancelOtherText, setCancelOtherText] = useState('')
+  const [cancelError, setCancelError] = useState('')
+  const portalTarget = typeof document !== 'undefined' ? document.body : null
   const { user } = useAuth()
 
   useEffect(() => {
@@ -62,23 +74,76 @@ export default function OrderTracking() {
     }
   }, [user?.email])
 
-  const handleCancelOrder = async (orderId) => {
-    if (!user?.email) return
-    if (!window.confirm('Bạn có chắc muốn huỷ đơn hàng này?')) return
+  const openCancelDialog = (orderId) => {
+    setCancelTarget(orderId)
+    setCancelReason('')
+    setCancelOtherText('')
+    setCancelError('')
+    setMessage('')
+  }
 
-    setCancellingId(orderId)
+  const closeCancelDialog = () => {
+    if (cancellingId) return
+    setCancelTarget('')
+    setCancelReason('')
+    setCancelOtherText('')
+    setCancelError('')
+  }
+
+  useEffect(() => {
+    if (!cancelTarget) return undefined
+
+    const originalOverflow = document.body.style.overflow
+    const onEscape = (event) => {
+      if (event.key === 'Escape' && !cancellingId) {
+        closeCancelDialog()
+      }
+    }
+
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', onEscape)
+
+    return () => {
+      document.body.style.overflow = originalOverflow
+      window.removeEventListener('keydown', onEscape)
+    }
+  }, [cancelTarget, cancellingId])
+
+  const handleCancelOrder = async () => {
+    if (!user?.email || !cancelTarget) return
+
+    if (!cancelReason) {
+      setCancelError('Vui lòng chọn lý do trước khi huỷ đơn hàng.')
+      return
+    }
+
+    const normalizedOtherReason = cancelOtherText.trim()
+    if (cancelReason === 'other' && !normalizedOtherReason) {
+      setCancelError('Vui lòng nhập lý do khác trước khi huỷ đơn hàng.')
+      return
+    }
+
+    const selectedReason = cancelReasonOptions.find(option => option.value === cancelReason)?.label || ''
+    const comment = cancelReason === 'other' ? `Khác: ${normalizedOtherReason}` : selectedReason
+
+    setCancellingId(cancelTarget)
+    setCancelError('')
     setMessage('')
 
     try {
-      await cancelUserOrder(orderId, user.email)
+      await cancelUserOrder(cancelTarget, user.email, comment)
       setMessage('Đã huỷ đơn hàng thành công.')
       const data = await fetchUserOrders(user.email)
       setOrders(Array.isArray(data) ? data : [])
       if (data?.length) {
         setExpanded(current => current ?? data[0].order_id)
       }
+      setCancelTarget('')
+      setCancelReason('')
+      setCancelOtherText('')
+      setCancelError('')
     } catch (error) {
-      setMessage(error.message || 'Không thể huỷ đơn hàng.')
+      setCancelError(error.message || 'Không thể huỷ đơn hàng.')
     } finally {
       setCancellingId('')
     }
@@ -182,6 +247,13 @@ export default function OrderTracking() {
                       ))}
                     </div>
 
+                    {order.note && (
+                      <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3">
+                        <span className="text-amber-700 text-xs inline-flex items-center gap-1.5"><MessageSquare size={13} /> Ghi chú đơn hàng</span>
+                        <p className="text-amber-900 text-sm mt-1 whitespace-pre-line break-words">{order.note}</p>
+                      </div>
+                    )}
+
                     {canCancel && (
                       <div className="mt-4 flex items-center justify-between gap-4 rounded-xl border border-red-500/20 bg-red-500/5 p-4 flex-wrap">
                         <div>
@@ -189,7 +261,7 @@ export default function OrderTracking() {
                           <p className="text-slate-400 text-xs mt-1">Chỉ huỷ được khi quản lý kho chưa duyệt đơn.</p>
                         </div>
                         <button
-                          onClick={() => handleCancelOrder(order.order_id)}
+                          onClick={() => openCancelDialog(order.order_id)}
                           disabled={cancellingId === order.order_id}
                           className="inline-flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-300 transition-colors hover:bg-red-500/20 disabled:opacity-60"
                         >
@@ -218,6 +290,81 @@ export default function OrderTracking() {
           <Package size={48} className="mx-auto text-slate-600 mb-4" />
           <p className="text-slate-500">Không có đơn hàng nào</p>
         </div>
+      )}
+
+      {cancelTarget && portalTarget && createPortal(
+        <div className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm p-4 overflow-y-auto" onClick={closeCancelDialog}>
+          <div className="min-h-full flex items-start sm:items-center justify-center py-6">
+            <div className="glass rounded-3xl p-6 border border-red-500/30 w-full max-w-lg fade-in text-slate-900" onClick={event => event.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-slate-900 font-semibold text-lg">Huỷ đơn hàng</h2>
+                <button onClick={closeCancelDialog} className="text-slate-500 hover:text-slate-900" disabled={Boolean(cancellingId)}><X size={20} /></button>
+              </div>
+
+              <p className="text-slate-600 text-sm mb-3">
+                Vui lòng chọn lý do huỷ cho đơn
+                {' '}
+                <span className="text-red-500 font-mono">{cancelTarget}</span>
+                .
+              </p>
+
+              <div className="space-y-2">
+                {cancelReasonOptions.map(option => {
+                  const isChecked = cancelReason === option.value
+
+                  return (
+                    <label
+                      key={option.value}
+                      className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm cursor-pointer transition-colors ${
+                        isChecked ? 'border-red-500 bg-red-50 text-red-700' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="cancel-reason"
+                        value={option.value}
+                        checked={isChecked}
+                        onChange={event => {
+                          setCancelReason(event.target.value)
+                          setCancelError('')
+                        }}
+                        disabled={Boolean(cancellingId)}
+                        className="h-4 w-4 border-slate-300 text-red-500 focus:ring-red-500"
+                      />
+                      <span>{option.label}</span>
+                    </label>
+                  )
+                })}
+              </div>
+
+              {cancelReason === 'other' && (
+                <textarea
+                  rows={3}
+                  value={cancelOtherText}
+                  onChange={event => {
+                    setCancelOtherText(event.target.value)
+                    setCancelError('')
+                  }}
+                  placeholder="Vui lòng nhập lý do cụ thể..."
+                  className="mt-3 w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 text-sm placeholder-slate-500 focus:outline-none focus:border-red-500 transition-colors resize-none"
+                />
+              )}
+
+              {cancelError && (
+                <p className="mt-2 text-sm text-red-500">{cancelError}</p>
+              )}
+
+              <div className="flex gap-3 pt-4">
+                <button onClick={closeCancelDialog} disabled={Boolean(cancellingId)} className="flex-1 bg-slate-100 border border-slate-200 text-slate-700 py-2.5 rounded-xl hover:bg-slate-200 transition-all text-sm font-medium disabled:opacity-60">Đóng</button>
+                <button onClick={handleCancelOrder} disabled={Boolean(cancellingId)} className="flex-1 rounded-xl border border-red-500/30 bg-red-500/10 text-red-600 py-2.5 text-sm font-semibold hover:bg-red-500/20 transition-all disabled:opacity-60 inline-flex items-center justify-center gap-2">
+                  {cancellingId ? <Loader2 size={16} className="animate-spin" /> : <MessageSquare size={16} />}
+                  {cancellingId ? 'Đang huỷ...' : 'Xác nhận huỷ'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        portalTarget,
       )}
     </div>
   )

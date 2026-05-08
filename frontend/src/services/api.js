@@ -43,6 +43,27 @@ export async function registerCustomerAccount(payload) {
   return request('/users/register', { method: 'POST', body: JSON.stringify(payload) })
 }
 
+export async function requestRegisterEmailOtp(payload) {
+  return request('/users/register/request-otp', { method: 'POST', body: JSON.stringify(payload) })
+}
+
+export async function verifyRegisterEmailOtp(payload) {
+  return request('/users/register/verify-otp', { method: 'POST', body: JSON.stringify(payload) })
+}
+
+export async function loginUserAccount(payload) {
+  return request('/users/login', { method: 'POST', body: JSON.stringify(payload) })
+}
+
+export async function loginWithGoogleAccount(payload) {
+  return request('/users/google-login', { method: 'POST', body: JSON.stringify(payload) })
+}
+
+export async function loginWithFacebookAccount(payload) {
+  return request('/users/facebook-login', { method: 'POST', body: JSON.stringify(payload) })
+}
+
+
 export async function fetchOrder(orderId) {
   return request(`/orders/${orderId}`)
 }
@@ -52,10 +73,10 @@ export async function fetchUserOrders(userEmail) {
   return data
 }
 
-export async function cancelUserOrder(orderId, userEmail) {
+export async function cancelUserOrder(orderId, userEmail, comment = '') {
   return request(`/orders/${encodeURIComponent(orderId)}/cancel`, {
     method: 'PATCH',
-    body: JSON.stringify({ userEmail }),
+    body: JSON.stringify({ userEmail, comment }),
   })
 }
 

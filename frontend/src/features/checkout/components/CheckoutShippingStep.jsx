@@ -8,7 +8,7 @@ const shippingFields = [
   { name: 'city', label: 'Thành phố', icon: MapPin, placeholder: 'TP. Hồ Chí Minh' },
 ]
 
-export default function CheckoutShippingStep({ form, onChange, onNext }) {
+export default function CheckoutShippingStep({ form, onChange, onNext, errors = {} }) {
   return (
     <div className="glass rounded-3xl p-6 border border-white/10 space-y-4 fade-in">
       <h2 className="text-white font-semibold text-xl mb-2 flex items-center gap-2">
@@ -28,9 +28,12 @@ export default function CheckoutShippingStep({ form, onChange, onNext }) {
                 value={form[field.name]}
                 onChange={onChange}
                 placeholder={field.placeholder}
-                className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-3 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                className={`w-full bg-white/5 border rounded-xl pl-9 pr-4 py-3 text-white text-sm placeholder-slate-600 focus:outline-none transition-colors ${
+                  errors[field.name] ? 'border-red-500/60 focus:border-red-500' : 'border-white/10 focus:border-indigo-500'
+                }`}
               />
             </div>
+            {errors[field.name] && <p className="mt-1 text-xs text-red-400">{errors[field.name]}</p>}
           </div>
         )
       })}

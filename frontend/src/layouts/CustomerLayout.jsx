@@ -204,6 +204,11 @@ export default function CustomerLayout() {
             <Link to="/admin/dashboard" className="transition-colors hover:text-[#2563eb]">Admin</Link>
             <Link to="/warehouse/inventory" className="transition-colors hover:text-[#2563eb]">Kho hàng</Link>
           </div>
+          <div className="flex flex-wrap justify-center gap-4 mt-4 text-sm text-slate-600">
+            <Link to="/privacy-policy" className="transition-colors hover:text-[#2563eb]">Chính sách quyền riêng tư</Link>
+            <Link to="/terms-of-service" className="transition-colors hover:text-[#2563eb]">Điều khoản dịch vụ</Link>
+            <Link to="/data-deletion" className="transition-colors hover:text-[#2563eb]">Xóa dữ liệu người dùng</Link>
+          </div>
           <p className="text-slate-500 text-xs mt-4">© 2024 SmartMobile. All rights reserved.</p>
         </div>
       </footer>

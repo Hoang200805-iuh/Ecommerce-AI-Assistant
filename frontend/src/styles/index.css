@@ -230,7 +230,7 @@ body {
 /* Fade-in animation */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  to { opacity: 1; transform: none; }
 }
 .fade-in { animation: fadeIn 0.5s ease forwards; }
 
@@ -259,3 +259,53 @@ body {
 .status-shipped { background: rgba(16,185,129,0.15); color: #10b981; }
 .status-delivered { background: rgba(16,185,129,0.2); color: #34d399; }
 .status-cancelled { background: rgba(239,68,68,0.15); color: #ef4444; }
+
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #111827 !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .receipt-print-area,
+  .receipt-print-area * {
+    visibility: visible !important;
+  }
+
+  .receipt-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 16px;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+  }
+
+  .receipt-print-area .text-white,
+  .receipt-print-area .text-indigo-300,
+  .receipt-print-area .text-slate-400,
+  .receipt-print-area .text-slate-500 {
+    color: #111827 !important;
+  }
+
+  .receipt-print-area table {
+    border-collapse: collapse;
+  }
+
+  .receipt-print-area th,
+  .receipt-print-area td {
+    border-color: #d1d5db !important;
+  }
+
+  .receipt-actions {
+    display: none !important;
+  }
+}

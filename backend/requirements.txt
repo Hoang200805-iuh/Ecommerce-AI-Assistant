@@ -2,6 +2,7 @@ fastapi
 uvicorn
 sqlalchemy
 aiosqlite
+asyncpg
 pydantic
 httpx
 python-dotenv

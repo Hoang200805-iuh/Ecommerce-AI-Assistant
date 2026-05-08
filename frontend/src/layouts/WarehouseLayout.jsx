@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Package, ClipboardList, BarChart2, ChevronLeft, ChevronRight, LogOut, Upload } from 'lucide-react'
 import { getRoleLabel, useAuth } from '../context/AuthContext'
 
@@ -14,7 +14,12 @@ export default function WarehouseLayout() {
   const [collapsed, setCollapsed] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()
+  const mainRef = useRef(null)
   const { user, logout } = useAuth()
+
+  useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0, behavior: 'auto' })
+  }, [location.pathname])
 
   const handleLogout = () => {
     logout()
@@ -84,7 +89,7 @@ export default function WarehouseLayout() {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-auto">
+      <main ref={mainRef} className="flex-1 overflow-auto">
         <div className="p-6">
           <Outlet />
         </div>

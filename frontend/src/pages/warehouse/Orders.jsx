@@ -122,7 +122,7 @@ export default function WarehouseOrders() {
   }
 
   return (
-    <div className="space-y-6 fade-in">
+    <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white">Xử lý đơn hàng</h1>
@@ -240,9 +240,9 @@ export default function WarehouseOrders() {
                   </div>
 
                   {order.note && (
-                    <div className="mt-3 rounded-xl border border-amber-500/25 bg-amber-500/10 p-3">
-                      <span className="text-amber-300 text-xs inline-flex items-center gap-1.5"><MessageSquare size={13} /> Ghi chú đơn hàng</span>
-                      <p className="text-amber-100 text-sm mt-1 whitespace-pre-line">{order.note}</p>
+                    <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3">
+                      <span className="text-amber-700 text-xs inline-flex items-center gap-1.5"><MessageSquare size={13} /> Ghi chú đơn hàng</span>
+                      <p className="text-amber-900 text-sm mt-1 whitespace-pre-line break-words">{order.note}</p>
                     </div>
                   )}
 

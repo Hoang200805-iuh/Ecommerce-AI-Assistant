@@ -12,6 +12,9 @@ import OrderTracking from '../pages/customer/OrderTracking'
 import Community from '../pages/customer/Community'
 import Login from '../pages/customer/Login'
 import Register from '../pages/customer/Register'
+import PrivacyPolicy from '../pages/customer/PrivacyPolicy'
+import TermsOfService from '../pages/customer/TermsOfService'
+import DataDeletion from '../pages/customer/DataDeletion'
 import Unauthorized from '../pages/Unauthorized'
 
 import AdminDashboard from '../pages/admin/Dashboard'
@@ -27,10 +30,14 @@ export default function AppRoutes() {
 	return (
 		<Routes>
 			<Route path="/unauthorized" element={<Unauthorized />} />
+			<Route path="/facebook-data-deletion.html" element={<Navigate to="/data-deletion" replace />} />
 
 			<Route element={<CustomerLayout />}>
 				<Route path="/" element={<Home />} />
 				<Route path="/product/:id" element={<Product />} />
+				<Route path="/privacy-policy" element={<PrivacyPolicy />} />
+				<Route path="/terms-of-service" element={<TermsOfService />} />
+				<Route path="/data-deletion" element={<DataDeletion />} />
 				<Route path="/cart" element={<RequireRole roles={[ 'customer' ]}><Cart /></RequireRole>} />
 				<Route path="/checkout" element={<RequireRole roles={[ 'customer' ]}><Checkout /></RequireRole>} />
 				<Route path="/orders" element={<RequireRole roles={[ 'customer' ]}><OrderTracking /></RequireRole>} />
