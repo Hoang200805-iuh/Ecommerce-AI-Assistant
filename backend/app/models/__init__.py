@@ -22,6 +22,17 @@ class Phone(Base):
     battery = Column(Text)
     review_count = Column(Integer, server_default="0")
     category = Column(Text)
+    feature_performance_score = Column(Float)
+    feature_gaming_score = Column(Float)
+    feature_camera_score = Column(Float)
+    feature_battery_score = Column(Float)
+    feature_display_score = Column(Float)
+    feature_premium_score = Column(Float)
+    feature_confidence = Column(Float)
+    feature_source = Column(String)
+    feature_reason = Column(Text)
+    feature_signature = Column(Text)
+    feature_updated_at = Column(DateTime)
 
 class Spec(Base):
     __tablename__ = "specs"

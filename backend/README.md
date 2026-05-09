@@ -87,6 +87,10 @@ OTP_EMAIL_PASSWORD=your_app_password
 OTP_EMAIL_FROM=your_gmail@gmail.com
 OTP_EMAIL_EXPIRE_MINUTES=5
 GOOGLE_CLIENT_ID=your_google_oauth_web_client_id
+GEMINI_API_KEY=your_google_gemini_api_key
+GEMINI_MODEL=gemini-2.5-flash
+GEMINI_THINKING_BUDGET=0
+RAG_FEATURE_ENRICHMENT_ENABLED=true
 
 Example for PostgreSQL (used in Docker):
 
@@ -99,4 +103,6 @@ Luu y:
 - `OTP_EMAIL_PASSWORD` la App Password cua Gmail (khong dung mat khau dang nhap thuong).
 - Neu chua cau hinh SMTP, API gui OTP se bao loi cau hinh.
 - `GOOGLE_CLIENT_ID` duoc dung de xac minh token khi dang nhap nhanh bang Google.
+- `GEMINI_API_KEY` duoc dung cho chatbot AI va tao feature score cho san pham.
+- `RAG_FEATURE_ENRICHMENT_ENABLED` cho phep Gemini tao feature score cua san pham; ket qua duoc luu truc tiep trong bang `phones`. Neu Gemini het quota hoac chua tao du score, chatbot se bao server dang ban thay vi dung score doan noi bo.
  

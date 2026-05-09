@@ -45,6 +45,9 @@ OTP_EMAIL_USERNAME=your_gmail@gmail.com
 OTP_EMAIL_PASSWORD=your_app_password
 OTP_EMAIL_FROM=your_gmail@gmail.com
 OTP_EMAIL_EXPIRE_MINUTES=5
+GEMINI_API_KEY=your_google_gemini_api_key
+GEMINI_MODEL=gemini-2.5-flash
+GEMINI_THINKING_BUDGET=0
 ```
 
 Backend sau khi chay:
@@ -71,6 +74,8 @@ Neu muon doi API, tao file `.env` trong thu muc `frontend/`:
 VITE_API_BASE_URL=http://localhost:3001/api
 VITE_GOOGLE_CLIENT_ID=your_google_oauth_web_client_id
 ```
+
+AI chatbot van co fallback tim kiem noi bo neu chua co `GEMINI_API_KEY`. Khi cau hinh key, backend dung Gemini de hieu intent va viet cau tra loi dua tren san pham truy xuat tu database.
 
 If you plan to run with PostgreSQL (recommended for Docker), set `DATABASE_URL` in the backend `.env`:
 

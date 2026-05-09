@@ -6,7 +6,7 @@ __pycache__/
 *.pyo
 *.pyd
 *.sqlite3
-backend/.env
+backend/.cache/
 
 # Node
 node_modules/
@@ -21,3 +21,6 @@ Thumbs.db
 
 # Vercel
 .vercel/
+
+**/venv/
+**.env

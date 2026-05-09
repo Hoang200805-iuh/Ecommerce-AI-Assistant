@@ -2,11 +2,73 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, case
 from typing import Optional
+from app.core.config import (
+    GEMINI_API_KEY,
+    GEMINI_MAX_OUTPUT_TOKENS,
+    GEMINI_MODEL,
+    GEMINI_THINKING_BUDGET,
+    GEMINI_TIMEOUT_SECONDS,
+    RAG_FEATURE_ENRICHMENT_ENABLED,
+)
 from app.db.session import get_db
 from app.models import Phone, Order, OrderItem, Payment, Spec
 from app.schemas import InventoryUpdate, OrderStatusUpdate, WarehouseProductCreate
+from app.services.google_llm import GeminiClient, GeminiConfig
+from app.services.product_intelligence import (
+    FeatureInput,
+    apply_feature_scores_to_object,
+    build_feature_signature,
+    extract_gemini_features,
+)
 
 router = APIRouter(prefix="/api/warehouse")
+
+
+def prepare_phone_feature_scores(phone: Phone) -> None:
+    signature = build_feature_signature(
+        phone.name,
+        phone.brand,
+        phone.price,
+        phone.ram,
+        phone.rom,
+        phone.battery,
+        phone.specs,
+        phone.description,
+    )
+    feature_input = FeatureInput(
+        product_id=int(phone.id),
+        name=phone.name or "",
+        brand=phone.brand or "",
+        price=phone.price,
+        rating=phone.rating,
+        ram=phone.ram,
+        rom=phone.rom,
+        battery=phone.battery,
+        specs=phone.specs or "",
+        description=phone.description or "",
+        signature=signature,
+    )
+    llm_client = GeminiClient(
+        GeminiConfig(
+            api_key=GEMINI_API_KEY,
+            model=GEMINI_MODEL,
+            timeout_seconds=GEMINI_TIMEOUT_SECONDS,
+            max_output_tokens=GEMINI_MAX_OUTPUT_TOKENS,
+            thinking_budget=GEMINI_THINKING_BUDGET,
+        )
+    )
+    features = extract_gemini_features(
+        [feature_input],
+        llm_client,
+        enabled=RAG_FEATURE_ENRICHMENT_ENABLED,
+    )
+    feature = features.get(phone.id)
+    if feature is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Server đang bận chuẩn bị dữ liệu AI cho sản phẩm. Vui lòng thử lại sau.",
+        )
+    apply_feature_scores_to_object(phone, feature, signature)
 
 def format_inventory_item(phone):
     stock = phone.stock if phone.stock is not None else 0
@@ -88,6 +150,8 @@ async def create_warehouse_product(payload: WarehouseProductCreate, db: AsyncSes
             for spec_key, spec_value in cleaned_specs
         ])
         phone.specs = " | ".join([f"{spec_key}: {spec_value}" for spec_key, spec_value in cleaned_specs])
+
+    prepare_phone_feature_scores(phone)
 
     await db.commit()
     await db.refresh(phone)

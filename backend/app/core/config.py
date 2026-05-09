@@ -4,7 +4,11 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()
+BASE_DIR = Path(__file__).resolve().parents[2]
+
+# Load backend/.env explicitly so config works whether the app is started from
+# repo root, backend/, Docker, or the serverless api/ entrypoint.
+load_dotenv(BASE_DIR / '.env')
 
 
 def _get_env(*keys: str, default: str = '') -> str:
@@ -14,7 +18,14 @@ def _get_env(*keys: str, default: str = '') -> str:
             return value.strip()
     return default
 
-BASE_DIR = Path(__file__).resolve().parents[2]
+
+def _env_bool(key: str, default: bool = False) -> bool:
+    value = os.getenv(key)
+    if value is None:
+        return default
+    return value.strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
 SOURCE_DB_PATH = BASE_DIR / 'prisma' / 'phones.db'
 
 
@@ -45,3 +56,13 @@ OTP_EMAIL_EXPIRE_MINUTES = int(os.getenv('OTP_EMAIL_EXPIRE_MINUTES', '5'))
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '')
 FACEBOOK_APP_ID = os.getenv('FACEBOOK_APP_ID', '')
 FACEBOOK_APP_SECRET = os.getenv('FACEBOOK_APP_SECRET', '')
+
+# Gemini API config for the AI shopping assistant.
+# Supports both the explicit Gemini key name and a generic Google API key for local setup.
+GEMINI_API_KEY = _get_env('GEMINI_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY', 'GOOGLE_API_KEY')
+GEMINI_MODEL = _get_env('GEMINI_MODEL', 'GOOGLE_GEMINI_MODEL', default='gemini-2.5-flash')
+GEMINI_TIMEOUT_SECONDS = float(os.getenv('GEMINI_TIMEOUT_SECONDS', '12'))
+GEMINI_MAX_OUTPUT_TOKENS = int(os.getenv('GEMINI_MAX_OUTPUT_TOKENS', '900'))
+GEMINI_THINKING_BUDGET = int(os.getenv('GEMINI_THINKING_BUDGET', '0'))
+
+RAG_FEATURE_ENRICHMENT_ENABLED = _env_bool('RAG_FEATURE_ENRICHMENT_ENABLED', default=True)
